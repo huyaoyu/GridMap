@@ -129,6 +129,9 @@ class GridMap2D(object):
         self.size      = copy.deepcopy(size)
         self.blockRows = [] # A list contains rows of blocks.
 
+        self.haveStaringPoint = False
+        self.startingPointIdx = [0, 0]
+
     def initialize(self, value = 1):
         # Drop current blockRows.
         self.blockRows = []
@@ -148,6 +151,20 @@ class GridMap2D(object):
             
             self.blockRows.append(temp)
     
+    def set_starting_point(self, r, c):
+        assert( isinstance(r, (int, long)) )
+        assert( isinstance(c, (int, long)) )
+        
+        if ( True == self.haveStaringPoint ):
+            # Overwrite the old staring point with a NormalBlock.
+            pass
+        
+        # Overwrite a block. Make it to be a starting point.
+        self.overwrite_block( r, c, StartingPoint() )
+        self.startingPointIdx = [ r, c ]
+
+        self.haveStaringPoint = True
+
     def overwrite_block(self, r, c, b):
         """
         r: Row index.
@@ -171,6 +188,7 @@ class GridMapEnv(object):
     def __init__(self, name = "DefaultGridMapEnv", gridMap = None):
         self.name = name
         self.map  = gridMap
+        self.agentStartingLoc = [0, 0]
     
     def render(self):
         """Render with matplotlib."""
