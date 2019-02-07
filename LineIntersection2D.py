@@ -1,6 +1,9 @@
 
 from __future__ import print_function
 
+# Created on 20190206
+# Author: Yaoyu Hu <yyhu_live@outlook.com>
+
 import math
 import numpy as np
 
