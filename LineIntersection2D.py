@@ -9,24 +9,24 @@ import numpy as np
 
 VALID_INTERSECTION    = 0
 FALL_OUT_INTERSECTION = 1
-NO_VALID_INTERSECTION = 2
+PARALLAL              = 2
+NO_VALID_INTERSECTION = 3
 
 def line_intersect(x0, y0, x1, y1, x2, y2, x3, y3, eps = 1e-6):
     """
     Calculates the interscetion point of two line segments (x0, y0) - (x1, y1) and
     (x2, y2) - (x3, y3). 
-
-    It is assumed that x1 >= x0, y1 >= y0, x3 >= x2, and y3 >= y2.
     
     The return values are [x, y] and a flag. flag == VALID_INTERSECTION means a valid intersection 
     point is found. flag == FALL_OUT_INTERSECTION means intersection doese not fall into the line segments. 
-    flag == NO_VALID_INTERSECTION means parallel lines or other situations, such as degenerated line segments.
+    flag == PARALLEL means lines are parallel. flag == NO_VALID_INTERSECTION means other situations, 
+    such as degenerated line segments.
 
     The function will test if these two lines are parallel by
     comparing the differences of x2 - x0 and x3 - x1, y2 - y0 and y3 - y1. If these 
     difference falls with in a range specified by eps, then these two lines are
     considered to be parallel to each other. If parallel lines are detected, this 
-    function returns NO_VALID_INTERSECTION as the value of flag. eps must be a positive number.
+    function returns PARALLEL as the value of flag. eps must be a positive number.
 
     In case of non-parallel lines, the function calculates the intersection point
     with the extended lines of the input line segments. Then the intersection point
@@ -39,11 +39,29 @@ def line_intersect(x0, y0, x1, y1, x2, y2, x3, y3, eps = 1e-6):
     """
 
     # Test the order of input arguments.
-    assert( x1 >= x0 )
-    assert( y1 >= y0 )
-    assert( x3 >= x2 )
-    assert( y3 >= y2 )
     assert( eps > 0 )
+
+    # Find out the order of x coordinates
+    if ( x0 <= x1 ):
+        minX01, maxX01 = x0, x1
+    else:
+        minX01, maxX01 = x1, x0
+    
+    if ( x2 <= x3 ):
+        minX23, maxX23 = x2, x3
+    else:
+        minX23, maxX23 = x3, x2
+
+    # Find out the order of y coordinates
+    if ( y0 <= y1 ):
+        minY01, maxY01 = y0, y1
+    else:
+        minY01, maxY01 = y1, y0
+    
+    if ( y2 <= y3 ):
+        minY23, maxY23 = y2, y3
+    else:
+        minY23, maxY23 = y3, y2
 
     # Initialize the return values.
     x    = None
@@ -57,16 +75,17 @@ def line_intersect(x0, y0, x1, y1, x2, y2, x3, y3, eps = 1e-6):
     dy2 = y3 - y2
 
     # Test if lines segments are degenerated.
-    if ( math.sqrt( dx0**2 + dy0**2 ) < eps ):
+    d01 = math.sqrt( dx0**2 + dy0**2 )
+    d23 = math.sqrt( dx2**2 + dy2**2 )
+    if ( d01 < eps ):
         return [x, y], flag
     
-    if ( math.sqrt( dx2**2 + dy2**2 ) < eps ):
+    if ( d23 < eps ):
         return [x, y], flag
 
     # Test if lines are parallel.
-    if ( math.fabs( (x2 - x0) - (x3 - x1) ) < eps and \
-         math.fabs( (y2 - y0) - (y3 - y1) ) < eps ):
-        return [x, y], flag        
+    if ( math.fabs( math.fabs( dx0*dx2 + dy0*dy2 ) - d01*d23 ) <= eps ):
+        return [x, y], PARALLAL       
 
     # ========== Intersection calculation. ==========
 
@@ -84,10 +103,10 @@ def line_intersect(x0, y0, x1, y1, x2, y2, x3, y3, eps = 1e-6):
     x = X[0, 0]; y = X[1, 0]
 
     # Test if the intersection falls into the line segments.
-    if ( x >= x0 and x <= x1 and \
-         x >= x2 and x <= x3 and \
-         y >= y0 and y <= y1 and \
-         y >= y2 and y <= y3 ):
+    if ( x >= minX01 and x <= maxX01 and \
+         x >= minX23 and x <= maxX23 and \
+         y >= minY01 and y <= maxY01 and \
+         y >= minY23 and y <= maxY23 ):
         flag = VALID_INTERSECTION
     else:
         flag = FALL_OUT_INTERSECTION
