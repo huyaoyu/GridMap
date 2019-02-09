@@ -25,10 +25,10 @@ class TestGridMap2D(unittest.TestCase):
     def test_evaluate_coordinates(self):
         print("test_evaluate_coordinates")
 
-        self.assertEqual( self.map.evaluate_coordinate( (    0,    0) ),    0 )
+        self.assertEqual( self.map.evaluate_coordinate( (    0,    0) ), -200 )
         self.assertEqual( self.map.evaluate_coordinate( (19.99, 9.99) ),  100 )
-        self.assertEqual( self.map.evaluate_coordinate( (19.99,    0) ),    1 )
-        self.assertEqual( self.map.evaluate_coordinate( (    0, 9.99) ),    1 )
+        self.assertEqual( self.map.evaluate_coordinate( (19.99, 0.01) ),    1 )
+        self.assertEqual( self.map.evaluate_coordinate( ( 0.01, 9.99) ),    1 )
         self.assertEqual( self.map.evaluate_coordinate( (   10,    4) ), -100 )
         self.assertEqual( self.map.evaluate_coordinate( (   10,    5) ), -100 )
         self.assertEqual( self.map.evaluate_coordinate( (   10,    6) ), -100 )
@@ -124,7 +124,7 @@ class TestGridMap2D(unittest.TestCase):
     def test_is_out_of_boundary(self):
         print("test_is_out_of_boundary")
 
-        coor   = GridMap.BlockCoor( 0, 0 )
+        coor   = GridMap.BlockCoor( 0.01, 0.01 )
         coorIn = copy.deepcopy( coor )
 
         # In boundaries.
@@ -139,7 +139,7 @@ class TestGridMap2D(unittest.TestCase):
         self.assertTrue( self.map.is_out_of_boundary(coor) )
 
         coorIn.x = coor.x - 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
-        coorIn.y = 0
+        coorIn.y = 0.01
         self.assertFalse( self.map.is_out_of_boundary(coorIn) )
 
         coorIn.y = coor.y
@@ -151,14 +151,14 @@ class TestGridMap2D(unittest.TestCase):
         coor.y = self.rows * self.map.get_step_size()[GridMap.GridMap2D.I_X]
         self.assertTrue( self.map.is_out_of_boundary(coor) )
 
-        coor.x = 0
+        coor.x = 0.01
         self.assertTrue( self.map.is_out_of_boundary(coor) )
 
         coorIn.x = coor.x
         coorIn.y = coor.y - 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
         self.assertFalse( self.map.is_out_of_boundary(coorIn) )
 
-        coorIn.x = 0
+        coorIn.x = 0.01
         self.assertFalse( self.map.is_out_of_boundary(coorIn) )
         
         # Out of the west boundary.
@@ -167,14 +167,14 @@ class TestGridMap2D(unittest.TestCase):
             0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
         self.assertTrue( self.map.is_out_of_boundary(coor) )
 
-        coor.y = 0
+        coor.y = 0.01
         self.assertTrue( self.map.is_out_of_boundary(coor) )
 
-        coorIn.x = coor.x + 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coorIn.x = coor.x + 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X] + 0.01
         coorIn.y = coor.y
         self.assertFalse( self.map.is_out_of_boundary(coorIn) )
 
-        coorIn.y = 0
+        coorIn.y = 0.01
         self.assertFalse( self.map.is_out_of_boundary(coorIn) )
 
         # Out of the south boundary.
@@ -187,7 +187,7 @@ class TestGridMap2D(unittest.TestCase):
         self.assertTrue( self.map.is_out_of_boundary(coor) )
 
         coorIn.x = 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
-        coorIn.y = coor.y + 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        coorIn.y = coor.y + 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_Y] + 0.01
         self.assertFalse( self.map.is_out_of_boundary(coorIn) )
 
         coorIn.x = coor.x
@@ -366,6 +366,401 @@ class TestGridMap2D(unittest.TestCase):
         self.assertEqual( loc[3].r, 1 )
         self.assertEqual( loc[3].c, self.cols-1 )
 
+class TestGridMapEnv(unittest.TestCase):
+    def setUp(self):
+        self.rows = 10
+        self.cols = 20
+        gridMap = GridMap.GridMap2D(self.rows, self.cols, outOfBoundValue=-200)
+        gridMap.initialize()
+        # Overwrite blocks.
+        gridMap.set_starting_point((0, 0))
+        gridMap.set_ending_point((9, 19))
+        gridMap.add_obstacle((4, 10))
+        gridMap.add_obstacle((5,  9))
+        gridMap.add_obstacle((5, 10))
+        gridMap.add_obstacle((5, 11))
+        gridMap.add_obstacle((6, 10))
+
+        self.gme = GridMap.GridMapEnv( gridMap = gridMap )
+
+        # # Describe the map.
+        # print(self.gme.map)
+
+        # Predefined points to be tested.
+        self.points = []
+        self.points.append( GridMap.BlockCoor( 12.0, 5.5 ) )
+        self.points.append( GridMap.BlockCoor( 12.0, 6.0 ) )
+        self.points.append( GridMap.BlockCoor( 11.5, 6.0 ) )
+        self.points.append( GridMap.BlockCoor( 11.0, 6.0 ) )
+        self.points.append( GridMap.BlockCoor( 11.0, 6.5 ) )
+        self.points.append( GridMap.BlockCoor( 11.0, 7.0 ) )
+        self.points.append( GridMap.BlockCoor( 10.5, 7.0 ) )
+        self.points.append( GridMap.BlockCoor( 10.0, 7.0 ) )
+        self.points.append( GridMap.BlockCoor( 10.0, 6.5 ) )
+        self.points.append( GridMap.BlockCoor( 10.0, 6.0 ) )
+        self.points.append( GridMap.BlockCoor(  9.5, 6.0 ) )
+        self.points.append( GridMap.BlockCoor(  9.0, 6.0 ) )
+        self.points.append( GridMap.BlockCoor(  9.0, 5.5 ) )
+        self.points.append( GridMap.BlockCoor(  9.0, 5.0 ) )
+        self.points.append( GridMap.BlockCoor(  9.5, 5.0 ) )
+        self.points.append( GridMap.BlockCoor( 10.0, 5.0 ) )
+        self.points.append( GridMap.BlockCoor( 10.0, 4.5 ) )
+        self.points.append( GridMap.BlockCoor( 10.0, 4.0 ) )
+        self.points.append( GridMap.BlockCoor( 10.5, 4.0 ) )
+        self.points.append( GridMap.BlockCoor( 11.0, 4.0 ) )
+        self.points.append( GridMap.BlockCoor( 11.0, 4.5 ) )
+        self.points.append( GridMap.BlockCoor( 11.0, 5.0 ) )
+        self.points.append( GridMap.BlockCoor( 11.5, 5.0 ) )
+        self.points.append( GridMap.BlockCoor( 12.0, 5.0 ) )
+
+        self.boundaryPoints = []
+        self.boundaryPoints.append( GridMap.BlockCoor( 20.0,  0.0 ) )
+        self.boundaryPoints.append( GridMap.BlockCoor( 20.0,  5.0 ) )
+        self.boundaryPoints.append( GridMap.BlockCoor( 20.0, 10.0 ) )
+        self.boundaryPoints.append( GridMap.BlockCoor( 10.0, 10.0 ) )
+        self.boundaryPoints.append( GridMap.BlockCoor(  0.0, 10.0 ) )
+        self.boundaryPoints.append( GridMap.BlockCoor(  0.0,  5.0 ) )
+        self.boundaryPoints.append( GridMap.BlockCoor(  0.0,  0.0 ) )
+        self.boundaryPoints.append( GridMap.BlockCoor(  5.0,  0.0 ) )
+
+    def test_dummy(self):
+        print("test_dummy")
+
+        self.gme.render(1)
+
+        self.assertTrue( True )
+    
+    def test_can_move_to_east(self):
+        print("test_can_move_to_east")
+
+        # East direction.
+        dx = 1.0
+        dy = 0.0
+
+        self.assertEqual( self.gme.can_move( self.points[ 0].x, self.points[ 0].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 1].x, self.points[ 1].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 2].x, self.points[ 2].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 3].x, self.points[ 3].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 4].x, self.points[ 4].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 5].x, self.points[ 5].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 6].x, self.points[ 6].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 7].x, self.points[ 7].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 8].x, self.points[ 8].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 9].x, self.points[ 9].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[10].x, self.points[10].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[11].x, self.points[11].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[12].x, self.points[12].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[13].x, self.points[13].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[14].x, self.points[14].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[15].x, self.points[15].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[16].x, self.points[16].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[17].x, self.points[17].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[18].x, self.points[18].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[19].x, self.points[19].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[20].x, self.points[20].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[21].x, self.points[21].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[22].x, self.points[22].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[23].x, self.points[23].y, dx, dy ),  True )
+
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 0].x, self.boundaryPoints[ 0].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 1].x, self.boundaryPoints[ 1].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 2].x, self.boundaryPoints[ 2].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 3].x, self.boundaryPoints[ 3].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 4].x, self.boundaryPoints[ 4].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 5].x, self.boundaryPoints[ 5].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 6].x, self.boundaryPoints[ 6].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 7].x, self.boundaryPoints[ 7].y, dx, dy ), False )
+    
+    def test_can_move_to_northeast(self):
+        print("test_can_move_to_northeast")
+
+        # Northeast direction.
+        dx = 1.0
+        dy = 1.0
+
+        self.assertEqual( self.gme.can_move( self.points[ 0].x, self.points[ 0].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 1].x, self.points[ 1].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 2].x, self.points[ 2].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 3].x, self.points[ 3].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 4].x, self.points[ 4].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 5].x, self.points[ 5].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 6].x, self.points[ 6].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 7].x, self.points[ 7].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 8].x, self.points[ 8].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 9].x, self.points[ 9].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[10].x, self.points[10].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[11].x, self.points[11].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[12].x, self.points[12].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[13].x, self.points[13].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[14].x, self.points[14].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[15].x, self.points[15].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[16].x, self.points[16].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[17].x, self.points[17].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[18].x, self.points[18].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[19].x, self.points[19].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[20].x, self.points[20].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[21].x, self.points[21].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[22].x, self.points[22].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[23].x, self.points[23].y, dx, dy ),  True )
+
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 0].x, self.boundaryPoints[ 0].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 1].x, self.boundaryPoints[ 1].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 2].x, self.boundaryPoints[ 2].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 3].x, self.boundaryPoints[ 3].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 4].x, self.boundaryPoints[ 4].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 5].x, self.boundaryPoints[ 5].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 6].x, self.boundaryPoints[ 6].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 7].x, self.boundaryPoints[ 7].y, dx, dy ),  True )
+
+    def test_can_move_to_north(self):
+        print("test_can_move_to_north")
+
+        # Nort direction.
+        dx = 0.0
+        dy = 1.0
+
+        self.assertEqual( self.gme.can_move( self.points[ 0].x, self.points[ 0].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 1].x, self.points[ 1].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 2].x, self.points[ 2].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 3].x, self.points[ 3].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 4].x, self.points[ 4].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 5].x, self.points[ 5].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 6].x, self.points[ 6].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 7].x, self.points[ 7].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 8].x, self.points[ 8].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 9].x, self.points[ 9].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[10].x, self.points[10].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[11].x, self.points[11].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[12].x, self.points[12].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[13].x, self.points[13].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[14].x, self.points[14].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[15].x, self.points[15].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[16].x, self.points[16].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[17].x, self.points[17].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[18].x, self.points[18].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[19].x, self.points[19].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[20].x, self.points[20].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[21].x, self.points[21].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[22].x, self.points[22].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[23].x, self.points[23].y, dx, dy ), False )
+
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 0].x, self.boundaryPoints[ 0].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 1].x, self.boundaryPoints[ 1].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 2].x, self.boundaryPoints[ 2].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 3].x, self.boundaryPoints[ 3].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 4].x, self.boundaryPoints[ 4].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 5].x, self.boundaryPoints[ 5].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 6].x, self.boundaryPoints[ 6].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 7].x, self.boundaryPoints[ 7].y, dx, dy ),  True )
+
+    def test_can_move_to_northwest(self):
+        print("test_can_move_to_northwest")
+
+        # Northwest direction.
+        dx = -1.0
+        dy =  1.0
+
+        self.assertEqual( self.gme.can_move( self.points[ 0].x, self.points[ 0].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 1].x, self.points[ 1].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 2].x, self.points[ 2].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 3].x, self.points[ 3].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 4].x, self.points[ 4].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 5].x, self.points[ 5].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 6].x, self.points[ 6].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 7].x, self.points[ 7].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 8].x, self.points[ 8].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 9].x, self.points[ 9].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[10].x, self.points[10].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[11].x, self.points[11].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[12].x, self.points[12].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[13].x, self.points[13].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[14].x, self.points[14].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[15].x, self.points[15].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[16].x, self.points[16].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[17].x, self.points[17].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[18].x, self.points[18].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[19].x, self.points[19].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[20].x, self.points[20].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[21].x, self.points[21].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[22].x, self.points[22].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[23].x, self.points[23].y, dx, dy ), False )
+
+        # import ipdb; ipdb.set_trace()
+
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 0].x, self.boundaryPoints[ 0].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 1].x, self.boundaryPoints[ 1].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 2].x, self.boundaryPoints[ 2].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 3].x, self.boundaryPoints[ 3].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 4].x, self.boundaryPoints[ 4].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 5].x, self.boundaryPoints[ 5].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 6].x, self.boundaryPoints[ 6].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 7].x, self.boundaryPoints[ 7].y, dx, dy ),  True )
+
+    def test_can_move_to_west(self):
+        print("test_can_move_to_west")
+
+        # West direction.
+        dx = -1.0
+        dy =  0.0
+
+        self.assertEqual( self.gme.can_move( self.points[ 0].x, self.points[ 0].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 1].x, self.points[ 1].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 2].x, self.points[ 2].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 3].x, self.points[ 3].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 4].x, self.points[ 4].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 5].x, self.points[ 5].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 6].x, self.points[ 6].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 7].x, self.points[ 7].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 8].x, self.points[ 8].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 9].x, self.points[ 9].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[10].x, self.points[10].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[11].x, self.points[11].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[12].x, self.points[12].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[13].x, self.points[13].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[14].x, self.points[14].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[15].x, self.points[15].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[16].x, self.points[16].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[17].x, self.points[17].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[18].x, self.points[18].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[19].x, self.points[19].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[20].x, self.points[20].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[21].x, self.points[21].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[22].x, self.points[22].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[23].x, self.points[23].y, dx, dy ), False )
+
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 0].x, self.boundaryPoints[ 0].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 1].x, self.boundaryPoints[ 1].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 2].x, self.boundaryPoints[ 2].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 3].x, self.boundaryPoints[ 3].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 4].x, self.boundaryPoints[ 4].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 5].x, self.boundaryPoints[ 5].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 6].x, self.boundaryPoints[ 6].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 7].x, self.boundaryPoints[ 7].y, dx, dy ), False )
+
+    def test_can_move_to_southwest(self):
+        print("test_can_move_to_southwest")
+
+        # Southwest direction.
+        dx = -1.0
+        dy = -1.0
+
+        self.assertEqual( self.gme.can_move( self.points[ 0].x, self.points[ 0].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 1].x, self.points[ 1].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 2].x, self.points[ 2].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 3].x, self.points[ 3].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 4].x, self.points[ 4].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 5].x, self.points[ 5].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 6].x, self.points[ 6].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 7].x, self.points[ 7].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 8].x, self.points[ 8].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 9].x, self.points[ 9].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[10].x, self.points[10].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[11].x, self.points[11].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[12].x, self.points[12].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[13].x, self.points[13].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[14].x, self.points[14].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[15].x, self.points[15].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[16].x, self.points[16].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[17].x, self.points[17].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[18].x, self.points[18].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[19].x, self.points[19].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[20].x, self.points[20].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[21].x, self.points[21].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[22].x, self.points[22].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[23].x, self.points[23].y, dx, dy ),  True )
+
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 0].x, self.boundaryPoints[ 0].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 1].x, self.boundaryPoints[ 1].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 2].x, self.boundaryPoints[ 2].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 3].x, self.boundaryPoints[ 3].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 4].x, self.boundaryPoints[ 4].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 5].x, self.boundaryPoints[ 5].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 6].x, self.boundaryPoints[ 6].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 7].x, self.boundaryPoints[ 7].y, dx, dy ), False )
+
+    def test_can_move_to_south(self):
+        print("test_can_move_to_south")
+
+        # South direction.
+        dx =  0.0
+        dy = -1.0
+
+        self.assertEqual( self.gme.can_move( self.points[ 0].x, self.points[ 0].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 1].x, self.points[ 1].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 2].x, self.points[ 2].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 3].x, self.points[ 3].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 4].x, self.points[ 4].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 5].x, self.points[ 5].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 6].x, self.points[ 6].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 7].x, self.points[ 7].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 8].x, self.points[ 8].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 9].x, self.points[ 9].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[10].x, self.points[10].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[11].x, self.points[11].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[12].x, self.points[12].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[13].x, self.points[13].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[14].x, self.points[14].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[15].x, self.points[15].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[16].x, self.points[16].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[17].x, self.points[17].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[18].x, self.points[18].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[19].x, self.points[19].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[20].x, self.points[20].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[21].x, self.points[21].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[22].x, self.points[22].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[23].x, self.points[23].y, dx, dy ),  True )
+
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 0].x, self.boundaryPoints[ 0].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 1].x, self.boundaryPoints[ 1].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 2].x, self.boundaryPoints[ 2].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 3].x, self.boundaryPoints[ 3].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 4].x, self.boundaryPoints[ 4].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 5].x, self.boundaryPoints[ 5].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 6].x, self.boundaryPoints[ 6].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 7].x, self.boundaryPoints[ 7].y, dx, dy ), False )
+
+    def test_can_move_to_southeast(self):
+        print("test_can_move_to_southeast")
+
+        # Southeast direction.
+        dx =  1.0
+        dy = -1.0
+
+        self.assertEqual( self.gme.can_move( self.points[ 0].x, self.points[ 0].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 1].x, self.points[ 1].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 2].x, self.points[ 2].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 3].x, self.points[ 3].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 4].x, self.points[ 4].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 5].x, self.points[ 5].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[ 6].x, self.points[ 6].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 7].x, self.points[ 7].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 8].x, self.points[ 8].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[ 9].x, self.points[ 9].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[10].x, self.points[10].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[11].x, self.points[11].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[12].x, self.points[12].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[13].x, self.points[13].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[14].x, self.points[14].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[15].x, self.points[15].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[16].x, self.points[16].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.points[17].x, self.points[17].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[18].x, self.points[18].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[19].x, self.points[19].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[20].x, self.points[20].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[21].x, self.points[21].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[22].x, self.points[22].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.points[23].x, self.points[23].y, dx, dy ),  True )
+
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 0].x, self.boundaryPoints[ 0].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 1].x, self.boundaryPoints[ 1].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 2].x, self.boundaryPoints[ 2].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 3].x, self.boundaryPoints[ 3].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 4].x, self.boundaryPoints[ 4].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 5].x, self.boundaryPoints[ 5].y, dx, dy ),  True )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 6].x, self.boundaryPoints[ 6].y, dx, dy ), False )
+        self.assertEqual( self.gme.can_move( self.boundaryPoints[ 7].x, self.boundaryPoints[ 7].y, dx, dy ), False )
+
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D )
+    suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMapEnv ) )
     unittest.TextTestRunner().run( suite )

@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import copy
+import math
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -13,10 +14,21 @@ class BlockIndex(object):
         self.r = r
         self.c = c
 
+        self.size = 2
+
 class BlockCoor(object):
     def __init__(self, x, y):
         self.x = x
         self.y = y
+
+        self.size = 2
+
+class BlockCoorDelta(object):
+    def __init__(self, dx, dy):
+        self.dx = dx
+        self.dy = dy
+
+        self.size = 2
 
 class Block(object):
     def __init__(self, x = 0, y = 0, h = 1, w = 1):
@@ -418,9 +430,9 @@ origin = [%d, %d], size = [%d, %d].""" \
         return s
 
     def is_out_of_boundary_s(self, x, y):
-        if ( x <  self.corners[0][GridMap2D.I_X] or \
+        if ( x <= self.corners[0][GridMap2D.I_X] or \
              x >= self.corners[1][GridMap2D.I_X] or \
-             y <  self.corners[0][GridMap2D.I_Y] or \
+             y <= self.corners[0][GridMap2D.I_Y] or \
              y >= self.corners[3][GridMap2D.I_Y] ):
             return True
         
@@ -494,8 +506,8 @@ origin = [%d, %d], size = [%d, %d].""" \
         # Check if [r, c] is valid.
         assert( isinstance( r, (int, long) ) )
         assert( isinstance( c, (int, long) ) )
-        assert( r >= 0 and r < self.rows )
-        assert( c >= 0 and c < self.cols )
+        # assert( r >= 0 and r < self.rows )
+        # assert( c >= 0 and c < self.cols )
 
         return BlockCoor( c*self.stepSize[GridMap2D.I_X], r*self.stepSize[GridMap2D.I_Y] )
 
@@ -511,25 +523,45 @@ origin = [%d, %d], size = [%d, %d].""" \
         else:
             raise TypeError("index must be either an ojbect of BlockIndex or a list.")
 
-    def is_east_boundary(self, coor):
+    def is_east_boundary(self, coor, eps = 1e-6):
         """Return True if coordinate x lies on the east boundary of the map."""
 
-        return ( coor.x == self.corners[1][0] )
+        assert( eps >= 0 )
 
-    def is_north_boundary(self, coor):
+        if ( 0 == eps ):
+            return ( coor.x == self.corners[1][0] )
+        else:
+            return ( math.fabs( coor.x - self.corners[1][0] ) < eps )
+
+    def is_north_boundary(self, coor, eps = 1e-6):
         """Return True if coordinate y lies on the north boundary of the map."""
 
-        return ( coor.y == self.corners[2][1] )
+        assert( eps >= 0 )
+
+        if ( 0 == eps ):
+            return ( coor.y == self.corners[2][1] )
+        else:
+            return ( math.fabs( coor.y - self.corners[2][1] ) < eps )
     
-    def is_west_boundary(self, coor):
+    def is_west_boundary(self, coor, eps = 1e-6):
         """Return True if coordinate x lies on the west boundary of the map."""
 
-        return ( coor.x == self.corners[0][0] )
+        assert( eps >= 0 )
 
-    def is_south_boundary(self, coor):
+        if ( 0 == eps ):
+            return ( coor.x == self.corners[0][0] )
+        else:
+            return ( math.fabs( coor.x - self.corners[0][0] ) < eps )
+
+    def is_south_boundary(self, coor, eps = 1e-6):
         """Return True if coordinate y lies on the south boundary of the map."""
 
-        return ( coor.y == self.corners[0][1] )
+        assert( eps >= 0 )
+
+        if ( 0 == eps ):
+            return ( coor.y == self.corners[0][1] )
+        else:
+            return ( math.fabs( coor.y - self.corners[0][1] ) < eps )
 
     def is_corner_or_principle_line(self, coor):
         """
@@ -558,38 +590,38 @@ class GridMapEnv(object):
     def __init__(self, name = "DefaultGridMapEnv", gridMap = None):
         self.name = name
         self.map  = gridMap
-        self.agentStartingLoc = [0, 0]
+        self.agentStartingLoc = None # Should be an object of BlockCoor.
 
         self.isTerminated = False
         self.nSteps = 0
 
         self.agentCurrentLoc = copy.deepcopy( self.agentStartingLoc )
-        self.agentCurrentAct = [0, 0]
+        self.agentCurrentAct = None # Should be an object of BlockCoorDelta.
 
     def get_state_size(self):
-        return len( self.agentCurrentLoc )
+        return self.agentCurrentLoc.size
     
     def get_action_size(self):
-        return len( self.agentCurrentAct )
+        return self.agentCurrentAct.size
     
     def reset(self):
         """Reset the evironment."""
 
         # Get the index of the starting point.
-        [rs, cs] = self.map.get_index_starting_point()
-        # Get the coordinates of [rs, cs].
-        [cx, cy] = self.map.convert_to_coordinates(rs, cs)
+        index = self.map.get_index_starting_point()
+        # Get the coordinates of index.
+        coor = self.map.convert_to_coordinates(index)
 
-        self.agentStartingLoc = [\
-            cx + self.map.get_step_size[0] / 2.0, \
-            cy + self.map.get_step_size[1] / 2.0 \
-            ]
+        self.agentStartingLoc = BlockCoor( \
+            coor.x + self.map.get_step_size[GridMap2D.I_X] / 2.0, \
+            coor.y + self.map.get_step_size[GridMap2D.I_Y] / 2.0 \
+        )
         
         # Reset the location of the agent.
         self.agentCurrentLoc = copy.deepcopy( self.agentStartingLoc )
 
         # Clear the cuurent action of the agent.
-        self.agentCurrentAct = [0, 0]
+        self.agentCurrentAct = BlockCoorDelta( 0, 0 )
 
         # Clear step counter.
         self.nSteps = 0
@@ -598,11 +630,25 @@ class GridMapEnv(object):
         self.isTerminated = False
 
     def step(self, action):
-        """Return values are next state, reward value, termination flag, and None."""
-        pass
+        """
+        Return values are next state, reward value, termination flag, and None.
+        action: An object of BlockCoorDelta.
 
-    def render(self):
-        """Render with matplotlib."""
+        action will be deepcopied.
+        """
+
+        if ( True == self.isTerminated ):
+            raise Exception("Episode already terminated.")
+        
+        self.agentCurrentAct = copy.deepcopy( action )
+
+        self.nSteps += 1
+
+    def render(self, pause = 0):
+        """Render with matplotlib.
+        pause: Time measured in seconds to pause before close the rendered image.
+        If pause < 1 then the rendered image will not be closed.
+        """
 
         if ( self.map is None ):
             raise ValueError("self.map is None")
@@ -620,7 +666,13 @@ class GridMapEnv(object):
         
         ax.autoscale()
 
-        plt.show()
+        if ( pause < 1 ):
+            plt.show()
+        elif ( pause >= 1 ):
+            print("Render %s for %f seconds." % (self.name, pause))
+            plt.show( block = False )
+            plt.pause( pause )
+            plt.close()
 
     def can_move_east(self, coor):
         """
@@ -952,7 +1004,20 @@ class GridMapEnv(object):
         elif ( dx > 0 and dy < 0 ):
             # Southeast direction.
             return self.can_move_southeast(coor)
-        
+        else:
+            raise ValueError("dx and dy may not both be zero at the same time.")
+
+    def calculate_value(self, coor):
+        """coor is an object of BlockCoor."""
+
+        val = 0
+
+        # Check all possible directions.
+        if ( True == self.map.is_east_boundary(coor) ):
+            val += self.map.outOfBoundValue
+        else:
+            pass
+
 if __name__ == "__main__":
     print("Hello GridMap.")
 
