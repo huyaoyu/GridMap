@@ -5,6 +5,19 @@ import copy
 import matplotlib.pyplot as plt
 import numpy as np
 
+class BlockIndex(object):
+    def __init__(self, r, c):
+        assert( isinstance(r, (int, long)) )
+        assert( isinstance(c, (int, long)) )
+        
+        self.r = r
+        self.c = c
+
+class BlockCoor(object):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
 class Block(object):
     def __init__(self, x = 0, y = 0, h = 1, w = 1):
         if ( ( not isinstance(x, (int, long)) ) or \
@@ -175,7 +188,7 @@ class GridMap2D(object):
         self.cols      = cols
         self.origin    = copy.deepcopy(origin) # x and y coordinates of the starting coordinate.
         self.stepSize  = copy.deepcopy(stepSize) # Step sizes in x and y direction. Note the order of x and y.
-        self.corners   = [] # A 4x2 2D list.
+        self.corners   = [] # A 4x2 2D list. Coordinates.
         self.blockRows = [] # A list contains rows of blocks.
 
         self.haveStaringPoint = False
@@ -216,6 +229,12 @@ class GridMap2D(object):
         self.corners.append( [ (cs[-1] + 1)*w, (rs[-1]+1)*h ] )
         self.corners.append( [        cs[0]*w, (rs[-1]+1)*h ] )
     
+    def get_block(self, index):
+        if ( index.r >= self.rows or index.c >= self.cols ):
+            raise IndexError( "Index out of range. indx = [%d, %d]" % (index.r, index.c) )
+        
+        return self.blockRows[index.r][index.c]
+
     def get_step_size(self):
         """[x, y]"""
         return self.stepSize
@@ -359,7 +378,7 @@ origin = [%d, %d], size = [%d, %d].""" \
 
         return s
 
-    def is_out_of_boundary(self, x, y):
+    def is_out_of_boundary_s(self, x, y):
         if ( x <  self.corners[0][GridMap2D.I_X] or \
              x >= self.corners[1][GridMap2D.I_X] or \
              y <  self.corners[0][GridMap2D.I_Y] or \
@@ -368,7 +387,17 @@ origin = [%d, %d], size = [%d, %d].""" \
         
         return False
 
-    def get_index_by_coordinates(self, x, y):
+    def is_out_of_boundary(self, coor):
+        """Overloaded function. Vary only in the argument list."""
+
+        if ( isinstance(coor, BlockCoor) ):
+            return self.is_out_of_boundary_s( coor.x, coor.y )
+        elif ( isinstance(coor, (list, tuple)) ):
+            return self.is_out_of_boundary_s( coor[GridMap2D.I_X], coor[GridMap2D.I_Y] )
+        else:
+            raise Exception("coor should be either an object of BlockCoor or a list")
+
+    def get_index_by_coordinates_s(self, x, y):
         """
         It is assumed that (x, y) is inside the map boundaries.
         x and y are real values.
@@ -379,9 +408,19 @@ origin = [%d, %d], size = [%d, %d].""" \
         c = int( ( 1.0*x - self.origin[GridMap2D.I_X] ) / self.stepSize[GridMap2D.I_X] )
         r = int( ( 1.0*y - self.origin[GridMap2D.I_Y] ) / self.stepSize[GridMap2D.I_Y] )
 
-        return [r, c]
+        return BlockIndex(r, c)
 
-    def evaluate_coordinate(self, x, y):
+    def get_index_by_coordinates(self, coor):
+        """Overloaded funcion. Only varys in the argument list."""
+
+        if ( isinstance(coor, BlockCoor) ):
+            return self.get_index_by_coordinates_s( coor.x, coor.y )
+        elif ( isinstance(coor, (list, tuple)) ):
+            return self.get_index_by_coordinates_s( coor[GridMap2D.I_X], coor[GridMap2D.I_Y])
+        else:
+            raise TypeError("coor should be either an object of BlcokCoor or a list")
+
+    def evaluate_coordinate_s(self, x, y):
         """
         This function evaluate coordinate (x, y) according to the under lying map.
         A value will be returned as the result of evaluation.
@@ -390,15 +429,25 @@ origin = [%d, %d], size = [%d, %d].""" \
         """
 
         # Check if (x, y) is out of boundary.
-        if ( True == self.is_out_of_boundary( x, y ) ):
+        if ( True == self.is_out_of_boundary_s( x, y ) ):
             return self.outOfBoundValue
         
         # In the boundary.
         # Calculate the integer index of block where (x, y) stays in.
-        [r, c] = self.get_index_by_coordinates(x, y)
+        index = self.get_index_by_coordinates_s(x, y)
 
-        # Get the value of the [r, c]] block.
-        return self.blockRows[r][c].value
+        # Get the value of the block.
+        return self.blockRows[index.r][index.c].value
+
+    def evaluate_coordinate(self, coor):
+        """Overloaded function. Only varys in argument list."""
+
+        if ( isinstance( coor, BlockCoor ) ):
+            return self.evaluate_coordinate_s( coor.x, coor.y )
+        elif ( isinstance( coor, (list, tuple) ) ):
+            return self.evaluate_coordinate_s( coor[GridMap2D.I_X], coor[GridMap2D.I_Y] )
+        else:
+            raise TypeError("coor should be either an object of BlockCoor or a list.")
     
     def convert_to_coordinates(self, r, c):
         """Convert the index into the real valued coordinates."""
@@ -409,7 +458,62 @@ origin = [%d, %d], size = [%d, %d].""" \
         assert( r >= 0 and r < self.rows )
         assert( c >= 0 and c < self.cols )
 
-        return [ c*self.stepSize[GridMap2D.I_X], r*self.stepSize[GridMap2D.I_Y] ]
+        return BlockCoor( c*self.stepSize[GridMap2D.I_X], r*self.stepSize[GridMap2D.I_Y] )
+
+    def convert_to_coordinates(self, index):
+        """
+        Overloaded function. Only various in the argument list.
+        """
+
+        if ( isinstance(index, BlockIndex) ):
+            return self.convert_to_coordinates( index.r, index.c )
+        elif ( isinstance(index, (list, tuple)) ):
+            return self.convert_to_coordinates( index[GridMap2D.I_R], index[GridMap2D.I_C] )
+        else:
+            raise TypeError("index must be either an ojbect of BlockIndex or a list.")
+
+    def is_east_boundary(self, coor):
+        """Return True if coordinate x lies on the east boundary of the map."""
+
+        return ( coor.x == self.corners[1][0] )
+
+    def is_north_boundary(self, coor):
+        """Return True if coordinate y lies on the north boundary of the map."""
+
+        return ( coor.y == self.corners[2][1] )
+    
+    def is_west_boundary(self, coor):
+        """Return True if coordinate x lies on the west boundary of the map."""
+
+        return ( coor.x == self.corners[0][0] )
+
+    def is_south_boundary(self, coor):
+        """Return True if coordinate y lies on the south boundary of the map."""
+
+        return ( coor.y == self.corners[0][1] )
+
+    def is_corner_or_principle_line(self, coor):
+        """
+        It is assumed (x, y) is inside the map.
+
+        The return value contains 4 parts:
+        (1) Ture if (x, y) is precisely a corner.
+        (2) Ture if (x, y) lies on a horizontal principle line or is a corner.
+        (3) Ture if (x, y) lies on a vertical principle line or is a corner.
+        (4) A list listing the index associated with (x, y).
+        """
+
+        # Get the index of (x, y).
+        index = self.get_index_by_coordinates(coor)
+
+        # Convert back to coordnates.
+        coor2 = self.convert_to_coordinates(index)
+
+        res = [ False, coor.y == coor2.y, coor.x == coor2.x, index ]
+
+        res[0] = (res[1] == True) and (res[2] == True)
+
+        return res
 
 class GridMapEnv(object):
     def __init__(self, name = "DefaultGridMapEnv", gridMap = None):
@@ -457,7 +561,7 @@ class GridMapEnv(object):
     def step(self, action):
         """Return values are next state, reward value, termination flag, and None."""
 
-        
+
 
     def render(self):
         """Render with matplotlib."""
@@ -481,6 +585,337 @@ class GridMapEnv(object):
 
         plt.show()
 
+    def can_move_east(self, coor):
+        """
+        coor is an object of BlockCoor.
+        """
+
+        if ( True == self.map.is_east_boundary(coor) ):
+            return False
+        
+        if ( True == self.map.is_north_boundary(coor) or \
+             True == self.map.is_south_boundary(coor) ):
+            return False
+            
+        loc = self.map.is_corner_or_principle_line(coor)
+
+        if ( (True == loc[0]) or (True == loc[1]) ):
+            if ( isinstance( self.map.get_block( loc[3] ), ObstacleBlock ) ):
+                return False
+            
+            index = copy.deepcopy(loc[3])
+            index.r -= 1
+
+            if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
+                return False
+            
+            return True
+        
+        if ( True == loc[2] ):
+            if ( isinstance( self.map.get_block( loc[3] ), ObstacleBlock ) ):
+                return False
+
+        return True
+                
+    def can_move_northeast(self, coor):
+        """
+        coor is an object of BlockCoor.
+        """
+        
+        if ( True == self.map.is_east_boundary(coor) or \
+             True == self.map.is_north_boundary(coor) ):
+            return False
+        
+        loc = self.map.is_corner_or_principle_line(coor)
+
+        if ( True == loc[0] ):
+            if ( isinstance( self.map.get_block(loc[3]), ObstacleBlock ) ):
+                return False
+            else:
+                return True    
+        
+        if ( True == loc[1] ):
+            if ( isinstance( self.map.get_block(loc[3]), ObstacleBlock ) ):
+                return False
+            else:
+                return True
+
+        if ( True == loc[2] ):
+            if ( isinstance( self.map.get_block(loc[3]), ObstacleBlock ) ):
+                return False
+            else:
+                return True
+
+        return True
+
+    def can_move_north(self, coor):
+        """
+        coor is an object of BlockCoor.
+        """
+
+        if ( True == self.map.is_north_boundary(coor) ):
+            return False
+        
+        if ( True == self.map.is_east_boundary(coor) or \
+             True == self.map.is_west_boundary(coor) ):
+            return False
+            
+        loc = self.map.is_corner_or_principle_line(coor)
+
+        if ( (True == loc[0]) or (True == loc[2]) ):
+            if ( isinstance( self.map.get_block( loc[3] ), ObstacleBlock ) ):
+                return False
+            
+            index = copy.deepcopy(loc[3])
+            index.c -= 1
+
+            if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
+                return False
+            
+            return True
+        
+        if ( True == loc[1] ):
+            if ( isinstance( self.map.get_block( loc[3] ), ObstacleBlock ) ):
+                return False
+
+        return True
+
+    def can_move_northwest(self, coor):
+        """
+        coor is an object of BlockCoor.
+        """
+        
+        if ( True == self.map.is_west_boundary(coor) or \
+             True == self.map.is_north_boundary(coor) ):
+            return False
+        
+        loc = self.map.is_corner_or_principle_line(coor)
+
+        if ( True == loc[0] ):
+            index = copy.deepcopy(loc[3])
+            index.c -= 1 # Left block.
+            if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
+                return False
+            else:
+                return True    
+        
+        if ( True == loc[1] ):
+            index = copy.deepcopy(loc[3])
+            if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
+                return False
+            else:
+                return True
+
+        if ( True == loc[2] ):
+            index = copy.deepcopy(loc[3])
+            index.c -= 1 # Left block.
+            if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
+                return False
+            else:
+                return True
+
+        return True
+
+    def can_move_west(self, coor):
+        """
+        coor is an object of BlockCoor.
+        """
+
+        if ( True == self.map.is_west_boundary(coor) ):
+            return False
+        
+        if ( True == self.map.is_north_boundary(coor) or \
+             True == self.map.is_south_boundary(coor) ):
+            return False
+            
+        loc = self.map.is_corner_or_principle_line(coor)
+
+        if ( True == loc[0] ):
+            index = copy.deepcopy(loc[3])
+            index.c -= 1 # Left block.
+            
+            if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
+                return False
+            
+            index.r -= 1 # Now bottom left block.
+
+            if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
+                return False
+            
+            return True
+        
+        if ( True == loc[1] ):
+            index = copy.deepcopy(loc[3])
+            if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
+                return False
+
+            index.r -= 1 # Bottom block.
+            
+            if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
+                return False
+
+        if ( True == loc[2] ):
+            index = copy.deepcopy( loc[3] )
+            index.c -= 1 # Left block.
+
+            if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
+                return False
+
+        return True
+    
+    def can_move_southwest(self, coor):
+        """
+        coor is an object of BlockCoor.
+        """
+        
+        if ( True == self.map.is_west_boundary(coor) or \
+             True == self.map.is_south_boundary(coor) ):
+            return False
+        
+        loc = self.map.is_corner_or_principle_line(coor)
+
+        if ( True == loc[0] ):
+            index = copy.deepcopy(loc[3])
+            index.c -= 1 # Left block.
+            index.r -= 1 # Bottom left block.
+            if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
+                return False
+            else:
+                return True    
+        
+        if ( True == loc[1] ):
+            index = copy.deepcopy(loc[3])
+            index.r -= 1 # Bottom block.
+            if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
+                return False
+            else:
+                return True
+
+        if ( True == loc[2] ):
+            index = copy.deepcopy(loc[3])
+            index.c -= 1 # Left block.
+            if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
+                return False
+            else:
+                return True
+
+        return True
+    
+    def can_move_south(self, coor):
+        """
+        coor is an object of BlockCoor.
+        """
+
+        if ( True == self.map.is_south_boundary(coor) ):
+            return False
+        
+        if ( True == self.map.is_east_boundary(coor) or \
+             True == self.map.is_west_boundary(coor) ):
+            return False
+            
+        loc = self.map.is_corner_or_principle_line(coor)
+
+        if ( True == loc[0] ):
+            index = copy.deepcopy(loc[3])
+            index.r -= 1 # Bottom block.
+            
+            if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
+                return False
+            
+            index.c -= 1 # Now bottom left block.
+
+            if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
+                return False
+            
+            return True
+        
+        if ( True == loc[2] ):
+            index = copy.deepcopy(loc[3])
+            if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
+                return False
+
+            index.c -= 1 # Left block.
+            
+            if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
+                return False
+
+        if ( True == loc[1] ):
+            index = copy.deepcopy( loc[3] )
+            index.r -= 1 # Bottom block.
+
+            if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
+                return False
+
+        return True
+
+    def can_move_southeast(self, coor):
+        """
+        coor is an object of BlockCoor.
+        """
+        
+        if ( True == self.map.is_east_boundary(coor) or \
+             True == self.map.is_south_boundary(coor) ):
+            return False
+        
+        loc = self.map.is_corner_or_principle_line(coor)
+
+        if ( True == loc[0] ):
+            index = copy.deepcopy(loc[3])
+            index.r -= 1 # Bottom block.
+            if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
+                return False
+            else:
+                return True    
+        
+        if ( True == loc[1] ):
+            index = copy.deepcopy(loc[3])
+            index.r -= 1 # Bottom block.
+            if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
+                return False
+            else:
+                return True
+
+        if ( True == loc[2] ):
+            if ( isinstance( self.map.get_block(loc[3]), ObstacleBlock ) ):
+                return False
+            else:
+                return True
+
+        return True
+
+    def can_move(self, x, y, dx, dy):
+        """Return True if the agent makes a valid line path 
+        starts from (x, y) and goes to (x + dx, y + dy). Return False if 
+        the agent could not go that direction."""
+
+        coor = BlockCoor(x, y)
+
+        # 8-way switch!
+        if ( dx > 0 and dy == 0 ):
+            # East direction.
+            return self.can_move_east(coor)
+        elif ( dx >0 and dy > 0 ):
+            # Northeast direction.
+            return self.can_move_northeast(coor)
+        elif ( dx == 0 and dy > 0 ):
+            # North direction.
+            return self.can_move_north(coor)
+        elif ( dx < 0 and dy > 0 ):
+            # Northwest direction.
+            return self.can_move_northwest(coor)
+        elif ( dx < 0 and dy == 0 ):
+            # West direction.
+            return self.can_move_west(coor)
+        elif ( dx < 0 and dy < 0 ):
+            # Southwest direction.
+            return self.can_move_southwest(coor)
+        elif ( dx == 0 and dy < 0 ):
+            # South direction.
+            return self.can_move_south(coor)
+        elif ( dx > 0 and dy < 0 ):
+            # Southeast direction.
+            return self.can_move_southeast(coor)
+        
 if __name__ == "__main__":
     print("Hello GridMap.")
 
@@ -508,21 +943,21 @@ if __name__ == "__main__":
     # import ipdb; ipdb.set_trace()
 
     # Test GridMap2D.evaluate_coordinate
-    print("Value of (   0,      0) is %f" % ( gm2d.evaluate_coordinate(0, 0) ) )
-    print("Value of (19.99,  9.99) is %f" % ( gm2d.evaluate_coordinate(19.99, 9.99) ) )
-    print("Value of (19.99,     0) is %f" % ( gm2d.evaluate_coordinate(19.99, 0) ) )
-    print("Value of (    0,  9.99) is %f" % ( gm2d.evaluate_coordinate(0, 9.99) ) )
-    print("Value of (   10,     4) is %f" % ( gm2d.evaluate_coordinate(10, 4) ) )
-    print("Value of (   10,     5) is %f" % ( gm2d.evaluate_coordinate(10, 5) ) )
-    print("Value of (   10,     6) is %f" % ( gm2d.evaluate_coordinate(10, 6) ) )
-    print("Value of (   10,   5.5) is %f" % ( gm2d.evaluate_coordinate(10, 5.5) ) )
-    print("Value of ( 10.5,     5) is %f" % ( gm2d.evaluate_coordinate(10.5, 5) ) )
-    print("Value of (10.99,  5.99) is %f" % ( gm2d.evaluate_coordinate(10.99, 5.99) ) )
-    print("Value of (   -1,    -1) is %f" % ( gm2d.evaluate_coordinate(-1, -1) ) )
-    print("Value of (    9, -0.01) is %f" % ( gm2d.evaluate_coordinate(9, -0.01) ) )
-    print("Value of (    9, 10.01) is %f" % ( gm2d.evaluate_coordinate(9, 10.01) ) )
-    print("Value of (-0.01,     5) is %f" % ( gm2d.evaluate_coordinate(-0.01, 5) ) )
-    print("Value of (20.01,     5) is %f" % ( gm2d.evaluate_coordinate(20.01, 5) ) )
+    print("Value of (   0,      0) is %f" % ( gm2d.evaluate_coordinate( (0, 0) ) ) )
+    print("Value of (19.99,  9.99) is %f" % ( gm2d.evaluate_coordinate( (19.99, 9.99) ) ) )
+    print("Value of (19.99,     0) is %f" % ( gm2d.evaluate_coordinate( (19.99, 0) ) ) )
+    print("Value of (    0,  9.99) is %f" % ( gm2d.evaluate_coordinate( (0, 9.99) ) ) )
+    print("Value of (   10,     4) is %f" % ( gm2d.evaluate_coordinate( (10, 4) ) ) )
+    print("Value of (   10,     5) is %f" % ( gm2d.evaluate_coordinate( (10, 5) ) ) )
+    print("Value of (   10,     6) is %f" % ( gm2d.evaluate_coordinate( (10, 6) ) ) )
+    print("Value of (   10,   5.5) is %f" % ( gm2d.evaluate_coordinate( (10, 5.5) ) ) )
+    print("Value of ( 10.5,     5) is %f" % ( gm2d.evaluate_coordinate( (10.5, 5) ) ) )
+    print("Value of (10.99,  5.99) is %f" % ( gm2d.evaluate_coordinate( (10.99, 5.99) ) ) )
+    print("Value of (   -1,    -1) is %f" % ( gm2d.evaluate_coordinate( (-1, -1) ) ) )
+    print("Value of (    9, -0.01) is %f" % ( gm2d.evaluate_coordinate( (9, -0.01) ) ) )
+    print("Value of (    9, 10.01) is %f" % ( gm2d.evaluate_coordinate( (9, 10.01) ) ) )
+    print("Value of (-0.01,     5) is %f" % ( gm2d.evaluate_coordinate( (-0.01, 5) ) ) )
+    print("Value of (20.01,     5) is %f" % ( gm2d.evaluate_coordinate( (20.01, 5) ) ) )
 
     # Create a GridMapEnv object.
     gme = GridMapEnv(gridMap = gm2d)
