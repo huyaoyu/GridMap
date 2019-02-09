@@ -192,10 +192,10 @@ class GridMap2D(object):
         self.blockRows = [] # A list contains rows of blocks.
 
         self.haveStaringPoint = False
-        self.startingPointIdx = [0, 0]
+        self.startingPointIdx = BlockIndex(0, 0)
 
         self.haveEndingPoint = False
-        self.endingPointIdx  = [0, 0]
+        self.endingPointIdx  = BlockIndex(0, 0)
 
         self.obstacleIndices = []
 
@@ -230,71 +230,110 @@ class GridMap2D(object):
         self.corners.append( [        cs[0]*w, (rs[-1]+1)*h ] )
     
     def get_block(self, index):
-        if ( index.r >= self.rows or index.c >= self.cols ):
-            raise IndexError( "Index out of range. indx = [%d, %d]" % (index.r, index.c) )
-        
-        return self.blockRows[index.r][index.c]
+        if ( isinstance( index, BlockIndex ) ):
+            if ( index.r >= self.rows or index.c >= self.cols ):
+                raise IndexError( "Index out of range. indx = [%d, %d]" % (index.r, index.c) )
+            
+            return self.blockRows[index.r][index.c]
+        elif ( isinstance( index, (list, tuple) ) ):
+            if ( index[GridMap2D.I_R] >= self.rows or \
+                 index[GridMap2D.I_C] >= self.cols ):
+                raise IndexError( "Index out of range. indx = [%d, %d]" % (index.r, index.c) )
+            
+            return self.blockRows[ index[GridMap2D.I_R] ][ index[GridMap2D.I_C] ]
 
     def get_step_size(self):
         """[x, y]"""
         return self.stepSize
 
     def get_index_starting_point(self):
+        """Return a copy of the index of the starting point."""
         if ( False == self.haveStaringPoint ):
             raise Exception("No staring point set yet.")
         
-        return self.startingPointIdx
+        return copy.deepcopy( self.startingPointIdx )
     
     def get_index_ending_point(self):
+        """Return a copy of the index of the ending point."""
         if ( False == self.haveEndingPoint ):
             raise Exception("No ending point set yet.")
         
-        return self.endingPointIdx
+        return copy.deepcopy( self.endingPointIdx )
 
-    def set_starting_point(self, r, c):
+    def set_starting_point_s(self, r, c):
         assert( isinstance(r, (int, long)) )
         assert( isinstance(c, (int, long)) )
         
         if ( True == self.haveStaringPoint ):
             # Overwrite the old staring point with a NormalBlock.
-            self.overwrite_block( self.startingPointIdx[GridMap2D.I_R], self.startingPointIdx[GridMap2D.I_C], NormalBlock() )
+            self.overwrite_block( self.startingPointIdx.r, self.startingPointIdx.c, NormalBlock() )
         
         # Overwrite a block. Make it to be a starting point.
         self.overwrite_block( r, c, StartingPoint() )
-        self.startingPointIdx = [ r, c ]
+        self.startingPointIdx.r = r
+        self.startingPointIdx.c = c
 
         self.haveStaringPoint = True
 
-    def set_ending_point(self, r, c):
+    def set_starting_point(self, index):
+        if ( isinstance( index, BlockIndex ) ):
+            self.set_starting_point_s( index.r, index.c )
+        elif ( isinstance( index, (list, tuple) ) ):
+            self.set_starting_point_s( index[GridMap2D.I_R], index[GridMap2D.I_C] )
+        else:
+            raise TypeError("index should be an object of BlockIndex or a list or a tuple.")
+
+    def set_ending_point_s(self, r, c):
         assert( isinstance(r, (int, long)) )
         assert( isinstance(c, (int, long)) )
         
         if ( True == self.haveEndingPoint ):
             # Overwrite the old staring point with a NormalBlock.
-            self.overwrite_block( self.endingPointIdx[GridMap2D.I_R], self.endingPointIdx[GridMap2D.I_C], NormalBlock() )
+            self.overwrite_block( self.endingPointIdx.r, self.endingPointIdx.c, NormalBlock() )
         
         # Overwrite a block. Make it to be a starting point.
         self.overwrite_block( r, c, EndingPoint() )
-        self.endingPointIdx = [ r, c ]
+        self.endingPointIdx.r = r
+        self.endingPointIdx.c = c
 
         self.haveEndingPoint = True
+    
+    def set_ending_point(self, index):
+        if ( isinstance( index, BlockIndex ) ):
+            self.set_ending_point_s( index.r, index.c )
+        elif ( isinstance( index, (list, tuple) ) ):
+            self.set_ending_point_s( index[GridMap2D.I_R], index[GridMap2D.I_C] )
+        else:
+            raise TypeError("index should be an object of BlockIndex or a list or a tuple.")
 
-    def add_obstacle(self, r, c):
+    def add_obstacle_s(self, r, c):
         assert( isinstance(r, (int, long)) )
         assert( isinstance(c, (int, long)) )
 
         # Check if the location is a starting point.
-        if ( r == self.startingPointIdx[GridMap2D.I_R] and c == self.startingPointIdx[GridMap2D.I_C] ):
+        if ( r == self.startingPointIdx.r and c == self.startingPointIdx.c ):
             raise IndexError( "Cannot turn a starting point (%d, %d) into obstacle." % (r, c) )
         
         # Check if the location is a ending point.
-        if ( r == self.endingPointIdx[GridMap2D.I_R] and c == self.endingPointIdx[GridMap2D.I_C] ):
+        if ( r == self.endingPointIdx.r and c == self.endingPointIdx.c ):
             raise IndexError( "Cannot turn a ending point (%d, %d) into obstacle." % (r, c) )
+
+        # Check if the destination is already an obstacle.
+        if ( isinstance( self.get_block((r, c)), ObstacleBlock ) ):
+            return
 
         self.overwrite_block( r, c, ObstacleBlock() )
 
         # Add the indices into self.obstacleIndices 2D list.
         add_element_to_2D_list( [r, c], self.obstacleIndices )
+
+    def add_obstacle(self, index):
+        if ( isinstance( index, BlockIndex ) ):
+            self.add_obstacle_s( index.r, index.c )
+        elif ( isinstance( index, (list, tuple) ) ):
+            self.add_obstacle_s( index[GridMap2D.I_R], index[GridMap2D.I_C] )
+        else:
+            raise TypeError("index should be an object of BlockIndex or a list or a tuple.")
 
     def overwrite_block(self, r, c, b):
         """
@@ -311,13 +350,13 @@ class GridMap2D(object):
         assert( c < self.cols )
 
         temp = copy.deepcopy(b)
-        b.set_coor_size( c, r, self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X] )
+        temp.set_coor_size( c, r, self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X] )
 
-        self.blockRows[r][c] = copy.deepcopy(b)
+        self.blockRows[r][c] = temp
 
     def get_string_starting_point(self):
         if ( True == self.haveStaringPoint ):
-            s = "Starting point at [%d, %d]." % ( self.startingPointIdx[GridMap2D.I_R], self.startingPointIdx[GridMap2D.I_C] )
+            s = "Starting point at [%d, %d]." % ( self.startingPointIdx.r, self.startingPointIdx.c )
         else:
             s = "No starting point."
 
@@ -325,7 +364,7 @@ class GridMap2D(object):
 
     def get_string_ending_point(self):
         if ( True == self.haveEndingPoint ):
-            s = "Ending point at [%d, %d]." % ( self.endingPointIdx[GridMap2D.I_R], self.endingPointIdx[GridMap2D.I_C] )
+            s = "Ending point at [%d, %d]." % ( self.endingPointIdx.r, self.endingPointIdx.c )
         else:
             s = "No ending point."
 
@@ -449,7 +488,7 @@ origin = [%d, %d], size = [%d, %d].""" \
         else:
             raise TypeError("coor should be either an object of BlockCoor or a list.")
     
-    def convert_to_coordinates(self, r, c):
+    def convert_to_coordinates_s(self, r, c):
         """Convert the index into the real valued coordinates."""
 
         # Check if [r, c] is valid.
@@ -466,9 +505,9 @@ origin = [%d, %d], size = [%d, %d].""" \
         """
 
         if ( isinstance(index, BlockIndex) ):
-            return self.convert_to_coordinates( index.r, index.c )
+            return self.convert_to_coordinates_s( index.r, index.c )
         elif ( isinstance(index, (list, tuple)) ):
-            return self.convert_to_coordinates( index[GridMap2D.I_R], index[GridMap2D.I_C] )
+            return self.convert_to_coordinates_s( index[GridMap2D.I_R], index[GridMap2D.I_C] )
         else:
             raise TypeError("index must be either an ojbect of BlockIndex or a list.")
 
@@ -560,8 +599,7 @@ class GridMapEnv(object):
 
     def step(self, action):
         """Return values are next state, reward value, termination flag, and None."""
-
-
+        pass
 
     def render(self):
         """Render with matplotlib."""
@@ -569,7 +607,6 @@ class GridMapEnv(object):
         if ( self.map is None ):
             raise ValueError("self.map is None")
 
-        from matplotlib.collections import PatchCollection
         from matplotlib.patches import Rectangle
 
         fig, ax = plt.subplots(1)
@@ -931,11 +968,11 @@ if __name__ == "__main__":
     obstacle = ObstacleBlock()
 
     # Overwrite blocks.
-    gm2d.set_starting_point(0, 0)
-    gm2d.set_ending_point(9, 19)
-    gm2d.add_obstacle(4, 10)
-    gm2d.add_obstacle(5, 10)
-    gm2d.add_obstacle(6, 10)
+    gm2d.set_starting_point((0, 0))
+    gm2d.set_ending_point((9, 19))
+    gm2d.add_obstacle((4, 10))
+    gm2d.add_obstacle((5, 10))
+    gm2d.add_obstacle((6, 10))
 
     # Describe the map.
     print(gm2d)
