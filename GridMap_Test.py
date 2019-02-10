@@ -16,7 +16,9 @@ class TestGridMap2D(unittest.TestCase):
         self.map.set_starting_point((0, 0))
         self.map.set_ending_point((9, 19))
         self.map.add_obstacle((4, 10))
+        self.map.add_obstacle((5,  9))
         self.map.add_obstacle((5, 10))
+        self.map.add_obstacle((5, 11))
         self.map.add_obstacle((6, 10))
 
         # # Describe the map.
@@ -25,21 +27,27 @@ class TestGridMap2D(unittest.TestCase):
     def test_evaluate_coordinates(self):
         print("test_evaluate_coordinates")
 
-        self.assertEqual( self.map.evaluate_coordinate( (    0,    0) ), -200 )
+        self.assertEqual( self.map.evaluate_coordinate( (    0,    0) ), -600 )
+        self.assertEqual( self.map.evaluate_coordinate( (  0.5,  0.5) ),    0 )
         self.assertEqual( self.map.evaluate_coordinate( (19.99, 9.99) ),  100 )
+        self.assertEqual( self.map.evaluate_coordinate( ( 20.0, 10.0) ), -600 )
         self.assertEqual( self.map.evaluate_coordinate( (19.99, 0.01) ),    1 )
         self.assertEqual( self.map.evaluate_coordinate( ( 0.01, 9.99) ),    1 )
+        self.assertEqual( self.map.evaluate_coordinate( ( 0.00, 10.0) ), -600 )
         self.assertEqual( self.map.evaluate_coordinate( (   10,    4) ), -100 )
-        self.assertEqual( self.map.evaluate_coordinate( (   10,    5) ), -100 )
-        self.assertEqual( self.map.evaluate_coordinate( (   10,    6) ), -100 )
-        self.assertEqual( self.map.evaluate_coordinate( (   10,  5.5) ), -100 )
-        self.assertEqual( self.map.evaluate_coordinate( ( 10.5,    5) ), -100 )
-        self.assertEqual( self.map.evaluate_coordinate( (10.99, 5.99) ), -100 )
-        self.assertEqual( self.map.evaluate_coordinate( (   -1,   -1) ), -200 )
-        self.assertEqual( self.map.evaluate_coordinate( (    9,-0.01) ), -200 )
-        self.assertEqual( self.map.evaluate_coordinate( (    9,10.01) ), -200 )
-        self.assertEqual( self.map.evaluate_coordinate( (-0.01,    5) ), -200 )
-        self.assertEqual( self.map.evaluate_coordinate( (20.01,    5) ), -200 )
+        self.assertEqual( self.map.evaluate_coordinate( (   10,    5) ), -300 )
+        self.assertEqual( self.map.evaluate_coordinate( (   10,    6) ), -300 )
+        self.assertEqual( self.map.evaluate_coordinate( (   10,    7) ), -100 )
+        self.assertEqual( self.map.evaluate_coordinate( ( 10.5,    4) ), -100 )
+        self.assertEqual( self.map.evaluate_coordinate( ( 10.5,    7) ), -100 )
+        self.assertEqual( self.map.evaluate_coordinate( (    9,  4.5) ),    1 )
+        self.assertEqual( self.map.evaluate_coordinate( (10.99, 4.99) ), -100 )
+
+        self.assertRaises( GridMap.GridMapException, self.map.evaluate_coordinate, (   -1,   -1) )
+        self.assertRaises( GridMap.GridMapException, self.map.evaluate_coordinate, (    9,-0.01) )
+        self.assertRaises( GridMap.GridMapException, self.map.evaluate_coordinate, (    9,10.01) )
+        self.assertRaises( GridMap.GridMapException, self.map.evaluate_coordinate, (-0.01,    5) )
+        self.assertRaises( GridMap.GridMapException, self.map.evaluate_coordinate, (20.01,    5) )
 
     def test_get_block(self):
         print("test_get_block")
@@ -53,6 +61,78 @@ class TestGridMap2D(unittest.TestCase):
         
         index.r = 5; index.c = 10
         self.assertTrue( isinstance(self.map.get_block(index), GridMap.ObstacleBlock) )
+
+    def test_is_normal_block(self):
+        print("test_is_normal_block")
+
+        index = GridMap.BlockIndex( 0, 0 )
+        self.assertFalse( self.map.is_normal_block( index ) )
+        
+        index.r = 4
+        index.c = 9
+        self.assertTrue( self.map.is_normal_block( index ) )
+
+        index.r = 4
+        index.c = 10
+        self.assertFalse( self.map.is_normal_block( index ) )
+
+        index.r = self.rows - 1
+        index.c = self.cols - 1
+        self.assertFalse( self.map.is_normal_block( index ) )
+
+    def test_is_obstacle_block(self):
+        print("test_is_obstacle_block")
+
+        index = GridMap.BlockIndex( 0, 0 )
+        self.assertFalse( self.map.is_obstacle_block( index ) )
+        
+        index.r = 4
+        index.c = 9
+        self.assertFalse( self.map.is_obstacle_block( index ) )
+
+        index.r = 4
+        index.c = 10
+        self.assertTrue( self.map.is_obstacle_block( index ) )
+
+        index.r = self.rows - 1
+        index.c = self.cols - 1
+        self.assertFalse( self.map.is_obstacle_block( index ) )
+
+    def test_is_starting_point(self):
+        print("test_is_starting_point")
+
+        index = GridMap.BlockIndex( 0, 0 )
+        self.assertTrue( self.map.is_starting_point( index ) )
+        
+        index.r = 4
+        index.c = 9
+        self.assertFalse( self.map.is_starting_point( index ) )
+
+        index.r = 4
+        index.c = 10
+        self.assertFalse( self.map.is_starting_point( index ) )
+
+        index.r = self.rows - 1
+        index.c = self.cols - 1
+        self.assertFalse( self.map.is_starting_point( index ) )
+
+    def test_is_ending_point(self):
+        print("test_is_starting_point")
+        
+        index = GridMap.BlockIndex( 0, 0 )
+        self.assertFalse( self.map.is_ending_point( index ) )
+        
+        index.r = 4
+        index.c = 9
+        self.assertFalse( self.map.is_ending_point( index ) )
+
+        index.r = 4
+        index.c = 10
+        self.assertFalse( self.map.is_ending_point( index ) )
+
+        index.r = self.rows - 1
+        index.c = self.cols - 1
+        self.assertTrue( self.map.is_ending_point( index ) )
 
     def test_get_step_size(self):
         print("test_get_step_size")
@@ -70,6 +150,42 @@ class TestGridMap2D(unittest.TestCase):
 
         self.assertEqual( self.map.get_index_ending_point().r, self.rows-1 )
         self.assertEqual( self.map.get_index_ending_point().c, self.cols-1 )
+
+    def test_is_in_ending_point(self):
+        print("test_is_in_ending_point")
+
+        coor = GridMap.BlockCoor( \
+            (self.cols-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_X], \
+            (self.rows-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_Y] )
+        self.assertTrue( self.map.is_in_ending_point( coor ) )
+
+        # Not in ending point.
+        coor.x = (self.cols-1) * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        self.assertFalse( self.map.is_in_ending_point( coor ) )
+
+        coor.y = (self.rows-1) * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        self.assertFalse( self.map.is_in_ending_point( coor ) )
+
+        coor.x = self.cols * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        self.assertFalse( self.map.is_in_ending_point( coor ) )
+
+        coor.y = self.rows * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        self.assertFalse( self.map.is_in_ending_point( coor ) )
+
+        coor.x = (self.cols-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        self.assertFalse( self.map.is_in_ending_point( coor ) )
+
+        coor.x = (self.cols-1.0) * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coor.y = (self.rows-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        self.assertFalse( self.map.is_in_ending_point( coor ) )
+
+        coor.x = (self.cols-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coor.y = (self.rows-1.0) * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        self.assertFalse( self.map.is_in_ending_point( coor ) )
+
+        coor.x = (self.cols-0.0) * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coor.y = (self.rows-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        self.assertFalse( self.map.is_in_ending_point( coor ) )
 
     def test_set_starting_point(self):
         print("test_set_starting_point")
@@ -121,6 +237,78 @@ class TestGridMap2D(unittest.TestCase):
         # The idxNew point now should be a NormalBlock.
         self.assertTrue( isinstance( self.map.get_block(idxNew), GridMap.NormalBlock ) )
 
+    def test_is_out_of_or_on_boundary(self):
+        print("test_is_out_of_or_on_boundary")
+
+        coor   = GridMap.BlockCoor( 0.01, 0.01 )
+        coorIn = copy.deepcopy( coor )
+
+        # In boundaries.
+        self.assertFalse( self.map.is_out_of_or_on_boundary( coorIn ) )
+
+        # Out of the east boundary.
+        coor.x = self.cols*self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        self.assertTrue( self.map.is_out_of_or_on_boundary(coor) )
+
+        coor.y = self.rows * self.map.get_step_size()[GridMap.GridMap2D.I_X] - \
+            0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        self.assertTrue( self.map.is_out_of_or_on_boundary(coor) )
+
+        coorIn.x = coor.x - 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coorIn.y = 0.01
+        self.assertFalse( self.map.is_out_of_or_on_boundary(coorIn) )
+
+        coorIn.y = coor.y
+        self.assertFalse( self.map.is_out_of_or_on_boundary(coorIn) )
+
+        # Out of the north boundary.
+        coor.x = self.map.corners[2][GridMap.GridMap2D.I_X] - \
+            0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coor.y = self.rows * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        self.assertTrue( self.map.is_out_of_or_on_boundary(coor) )
+
+        coor.x = 0.01
+        self.assertTrue( self.map.is_out_of_or_on_boundary(coor) )
+
+        coorIn.x = coor.x
+        coorIn.y = coor.y - 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        self.assertFalse( self.map.is_out_of_or_on_boundary(coorIn) )
+
+        coorIn.x = 0.01
+        self.assertFalse( self.map.is_out_of_or_on_boundary(coorIn) )
+        
+        # Out of the west boundary.
+        coor.x = -0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coor.y = self.map.corners[3][GridMap.GridMap2D.I_Y] - \
+            0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        self.assertTrue( self.map.is_out_of_or_on_boundary(coor) )
+
+        coor.y = 0.01
+        self.assertTrue( self.map.is_out_of_or_on_boundary(coor) )
+
+        coorIn.x = coor.x + 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X] + 0.01
+        coorIn.y = coor.y
+        self.assertFalse( self.map.is_out_of_or_on_boundary(coorIn) )
+
+        coorIn.y = 0.01
+        self.assertFalse( self.map.is_out_of_or_on_boundary(coorIn) )
+
+        # Out of the south boundary.
+        coor.x = 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coor.y = -0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        self.assertTrue( self.map.is_out_of_or_on_boundary(coor) )
+
+        coor.x = self.map.corners[1][GridMap.GridMap2D.I_X] - \
+            0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        self.assertTrue( self.map.is_out_of_or_on_boundary(coor) )
+
+        coorIn.x = 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coorIn.y = coor.y + 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_Y] + 0.01
+        self.assertFalse( self.map.is_out_of_or_on_boundary(coorIn) )
+
+        coorIn.x = coor.x
+        self.assertFalse( self.map.is_out_of_or_on_boundary(coorIn) )
+
     def test_is_out_of_boundary(self):
         print("test_is_out_of_boundary")
 
@@ -132,6 +320,9 @@ class TestGridMap2D(unittest.TestCase):
 
         # Out of the east boundary.
         coor.x = self.cols*self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        self.assertFalse( self.map.is_out_of_boundary(coor) )
+
+        coor.x += 0.01
         self.assertTrue( self.map.is_out_of_boundary(coor) )
 
         coor.y = self.rows * self.map.get_step_size()[GridMap.GridMap2D.I_X] - \
@@ -149,9 +340,9 @@ class TestGridMap2D(unittest.TestCase):
         coor.x = self.map.corners[2][GridMap.GridMap2D.I_X] - \
             0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
         coor.y = self.rows * self.map.get_step_size()[GridMap.GridMap2D.I_X]
-        self.assertTrue( self.map.is_out_of_boundary(coor) )
+        self.assertFalse( self.map.is_out_of_boundary(coor) )
 
-        coor.x = 0.01
+        coor.y += 0.01
         self.assertTrue( self.map.is_out_of_boundary(coor) )
 
         coorIn.x = coor.x
@@ -162,9 +353,12 @@ class TestGridMap2D(unittest.TestCase):
         self.assertFalse( self.map.is_out_of_boundary(coorIn) )
         
         # Out of the west boundary.
-        coor.x = -0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coor.x = 0
         coor.y = self.map.corners[3][GridMap.GridMap2D.I_Y] - \
             0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        self.assertFalse( self.map.is_out_of_boundary(coor) )
+
+        coor.x = -0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
         self.assertTrue( self.map.is_out_of_boundary(coor) )
 
         coor.y = 0.01
@@ -179,6 +373,9 @@ class TestGridMap2D(unittest.TestCase):
 
         # Out of the south boundary.
         coor.x = 0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coor.y = 0
+        self.assertFalse( self.map.is_out_of_boundary(coor) )
+
         coor.y = -0.5 * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
         self.assertTrue( self.map.is_out_of_boundary(coor) )
 
@@ -759,6 +956,56 @@ class TestGridMapEnv(unittest.TestCase):
         self.assertEqual( self.gme.can_move( self.boundaryPoints[ 5].x, self.boundaryPoints[ 5].y, dx, dy ),  True )
         self.assertEqual( self.gme.can_move( self.boundaryPoints[ 6].x, self.boundaryPoints[ 6].y, dx, dy ), False )
         self.assertEqual( self.gme.can_move( self.boundaryPoints[ 7].x, self.boundaryPoints[ 7].y, dx, dy ), False )
+
+    def test_try_move(self):
+        """Test try_move()."""
+
+        print("test_try_move")
+
+        sizeW = self.gme.map.get_step_size()[GridMap.GridMap2D.I_X]
+        sizeH = self.gme.map.get_step_size()[GridMap.GridMap2D.I_Y]
+
+        # From staring point move half a block.
+        coor = GridMap.BlockCoor( \
+            self.gme.map.corners[0][GridMap.GridMap2D.I_X] + 0.5 * sizeW, \
+            self.gme.map.corners[0][GridMap.GridMap2D.I_Y] + 0.5 * sizeH )
+        
+        coorDelta = GridMap.BlockCoorDelta( sizeW, sizeH )
+
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
+        self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
+        self.assertEqual( val, 1 )
+        self.assertEqual( flagTerm, False )
+
+        # Move into ending point.
+        coor.x = self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 1.5 * sizeW
+        coor.y = self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 1.5 * sizeH
+        
+        coorDelta.dx = sizeW
+        coorDelta.dy = sizeH
+
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
+        self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
+        self.assertEqual( val, 100 )
+        self.assertEqual( flagTerm, True )
+
+        # From staring point move half a block south.
+        coor.x = self.gme.map.corners[0][GridMap.GridMap2D.I_X] + 0.5 * sizeW
+        coor.y = self.gme.map.corners[0][GridMap.GridMap2D.I_Y] + 0.5 * sizeH
+        
+        coorDelta.dx = 0
+        coorDelta.dy = -sizeH
+
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
+        self.assertEqual( coorNew.y, 0 )
+        self.assertEqual( val, -200 )
+        self.assertEqual( flagTerm, False )
 
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D )
