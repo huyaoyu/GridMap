@@ -1007,6 +1007,22 @@ class TestGridMapEnv(unittest.TestCase):
         self.assertEqual( val, -200 )
         self.assertEqual( flagTerm, False )
 
+        # From staring point move half a block west.
+        coor.x = self.gme.map.corners[0][GridMap.GridMap2D.I_X] + 0.5 * sizeW
+        coor.y = self.gme.map.corners[0][GridMap.GridMap2D.I_Y] + 0.5 * sizeH
+        
+        coorDelta.dx = -sizeW
+        coorDelta.dy = 0
+
+        # import ipdb; ipdb.set_trace()
+
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        self.assertEqual( coorNew.x, 0 )
+        self.assertEqual( coorNew.y, coor.y )
+        self.assertEqual( val, -200 )
+        self.assertEqual( flagTerm, False )
+
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D )
     suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMapEnv ) )

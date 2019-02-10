@@ -60,7 +60,7 @@ class BlockCoorDelta(object):
 
         if ( self.dx > 0 ):
             dx = 1.0
-        elif ( dx < 0 ):
+        elif ( self.dx < 0 ):
             dx = -1.0
         
         if ( self.dy > 0 ):
