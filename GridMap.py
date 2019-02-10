@@ -591,6 +591,7 @@ origin = [%d, %d], size = [%d, %d].""" \
 
         val   = 0 # The final value.
         valNB = 0 # The value of the normal block.
+        valOB = 0 # The value for out of boundary.
 
         for idx in idxList:
             # Check if idx is out of boundary.
@@ -598,7 +599,7 @@ origin = [%d, %d], size = [%d, %d].""" \
                  idx.c >= self.cols or \
                  idx.r < 0 or \
                  idx.c < 0 ):
-                val += self.outOfBoundValue
+                valOB = self.outOfBoundValue
                 flagHaveNonNormalBlock = True
                 continue
 
@@ -617,6 +618,9 @@ origin = [%d, %d], size = [%d, %d].""" \
                 flagHaveNonNormalBlock = True
                 continue
 
+        # Only count out-of-boundary condition for onece.
+        val += valOB
+
         # Check if all types of blocks are handled.
         if ( False == flagHaveNonNormalBlock and \
              False == flagHaveNormalBlock ):
@@ -624,6 +628,7 @@ origin = [%d, %d], size = [%d, %d].""" \
 
         if ( False == flagHaveNonNormalBlock and \
              True  == flagHaveNormalBlock ):
+             # This if condition seems to be unnessesary.
             val += valNB
         
         return val
@@ -1286,9 +1291,19 @@ class GridMapEnv(object):
                         # Get the index at (xV, yV).
                         interIdxV = self.map.get_index_by_coordinates( BlockCoor(xV, yV) )
 
-                        if ( delta.x < 0 ):
+                        if ( delta.dx < 0 ):
                             # Left direction.
                             interIdxV.c -= 1
+
+                        if ( True == self.map.is_obstacle_block( interIdxV ) ):
+                            # Stop here.
+                            coor.x, coor.y = xV, yV
+                            break
+
+                        # Check if we are travelling along a horizontal line.
+                        if ( loc[1] == True and delta.dy == 0 ):
+                            # South direction.
+                            interIdxV.r -= 1
 
                         if ( True == self.map.is_obstacle_block( interIdxV ) ):
                             # Stop here.
@@ -1351,10 +1366,19 @@ class GridMapEnv(object):
                         # Get the index at (xH, yH).
                         interIdxH = self.map.get_index_by_coordinates( BlockCoor(xH, yH) )
 
-                        if ( delta.y < 0 ):
+                        if ( delta.dy < 0 ):
                             # Downwards direction.
                             interIdxH.r -= 1
 
+                        if ( True == self.map.is_obstacle_block( interIdxH ) ):
+                            # Stop here.
+                            coor.x, coor.y = xH, yH
+                            break
+                        
+                        # Check if we are travelling along a vertical line.
+                        if ( loc[2] == True and delta.dx == 0 ):
+                            interIdxH.c -= 1
+                        
                         if ( True == self.map.is_obstacle_block( interIdxH ) ):
                             # Stop here.
                             coor.x, coor.y = xH, yH

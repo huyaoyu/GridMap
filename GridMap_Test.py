@@ -15,11 +15,15 @@ class TestGridMap2D(unittest.TestCase):
         # Overwrite blocks.
         self.map.set_starting_point((0, 0))
         self.map.set_ending_point((9, 19))
+        self.map.add_obstacle((0, 10))
         self.map.add_obstacle((4, 10))
+        self.map.add_obstacle((5,  0))
         self.map.add_obstacle((5,  9))
         self.map.add_obstacle((5, 10))
         self.map.add_obstacle((5, 11))
+        self.map.add_obstacle((5, 19))
         self.map.add_obstacle((6, 10))
+        self.map.add_obstacle((9, 10))
 
         # # Describe the map.
         # print(gm2d)
@@ -27,13 +31,13 @@ class TestGridMap2D(unittest.TestCase):
     def test_evaluate_coordinates(self):
         print("test_evaluate_coordinates")
 
-        self.assertEqual( self.map.evaluate_coordinate( (    0,    0) ), -600 )
+        self.assertEqual( self.map.evaluate_coordinate( (    0,    0) ), -200 )
         self.assertEqual( self.map.evaluate_coordinate( (  0.5,  0.5) ),    0 )
         self.assertEqual( self.map.evaluate_coordinate( (19.99, 9.99) ),  100 )
-        self.assertEqual( self.map.evaluate_coordinate( ( 20.0, 10.0) ), -600 )
+        self.assertEqual( self.map.evaluate_coordinate( ( 20.0, 10.0) ), -200 )
         self.assertEqual( self.map.evaluate_coordinate( (19.99, 0.01) ),    1 )
         self.assertEqual( self.map.evaluate_coordinate( ( 0.01, 9.99) ),    1 )
-        self.assertEqual( self.map.evaluate_coordinate( ( 0.00, 10.0) ), -600 )
+        self.assertEqual( self.map.evaluate_coordinate( ( 0.00, 10.0) ), -200 )
         self.assertEqual( self.map.evaluate_coordinate( (   10,    4) ), -100 )
         self.assertEqual( self.map.evaluate_coordinate( (   10,    5) ), -300 )
         self.assertEqual( self.map.evaluate_coordinate( (   10,    6) ), -300 )
@@ -572,11 +576,15 @@ class TestGridMapEnv(unittest.TestCase):
         # Overwrite blocks.
         gridMap.set_starting_point((0, 0))
         gridMap.set_ending_point((9, 19))
+        gridMap.add_obstacle((0, 10))
         gridMap.add_obstacle((4, 10))
+        gridMap.add_obstacle((5,  0))
         gridMap.add_obstacle((5,  9))
         gridMap.add_obstacle((5, 10))
         gridMap.add_obstacle((5, 11))
+        gridMap.add_obstacle((5, 19))
         gridMap.add_obstacle((6, 10))
+        gridMap.add_obstacle((9, 10))
 
         self.gme = GridMap.GridMapEnv( gridMap = gridMap )
 
@@ -612,13 +620,13 @@ class TestGridMapEnv(unittest.TestCase):
 
         self.boundaryPoints = []
         self.boundaryPoints.append( GridMap.BlockCoor( 20.0,  0.0 ) )
-        self.boundaryPoints.append( GridMap.BlockCoor( 20.0,  5.0 ) )
+        self.boundaryPoints.append( GridMap.BlockCoor( 20.0,  4.5 ) )
         self.boundaryPoints.append( GridMap.BlockCoor( 20.0, 10.0 ) )
-        self.boundaryPoints.append( GridMap.BlockCoor( 10.0, 10.0 ) )
+        self.boundaryPoints.append( GridMap.BlockCoor(  9.5, 10.0 ) )
         self.boundaryPoints.append( GridMap.BlockCoor(  0.0, 10.0 ) )
-        self.boundaryPoints.append( GridMap.BlockCoor(  0.0,  5.0 ) )
+        self.boundaryPoints.append( GridMap.BlockCoor(  0.0,  4.5 ) )
         self.boundaryPoints.append( GridMap.BlockCoor(  0.0,  0.0 ) )
-        self.boundaryPoints.append( GridMap.BlockCoor(  5.0,  0.0 ) )
+        self.boundaryPoints.append( GridMap.BlockCoor(  9.5,  0.0 ) )
 
     def test_dummy(self):
         print("test_dummy")
@@ -1014,14 +1022,890 @@ class TestGridMapEnv(unittest.TestCase):
         coorDelta.dx = -sizeW
         coorDelta.dy = 0
 
-        # import ipdb; ipdb.set_trace()
-
         coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
 
         self.assertEqual( coorNew.x, 0 )
         self.assertEqual( coorNew.y, coor.y )
         self.assertEqual( val, -200 )
         self.assertEqual( flagTerm, False )
+
+    def test_try_move_long_distance_with_no_obstacles(self):
+        print("test_try_move_long_distance_with_no_obstacles")
+
+        sizeW = self.gme.map.get_step_size()[GridMap.GridMap2D.I_X]
+        sizeH = self.gme.map.get_step_size()[GridMap.GridMap2D.I_Y]
+
+        # Above the starting point.
+        coor = GridMap.BlockCoor( 0.5*sizeW, 1.5*sizeH )
+
+        # Delta of movements.
+        coorDelta = GridMap.BlockCoorDelta( \
+            self.gme.map.corners[1][GridMap.GridMap2D.I_X] - self.gme.map.corners[0][GridMap.GridMap2D.I_X] - sizeW, \
+            0.5 * sizeH )
+        
+        # Try to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
+        self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
+        self.assertEqual( val, 1 )
+        self.assertEqual( flagTerm, False )
+
+        # To the riight of the starting point.
+        coor = GridMap.BlockCoor( 1.5*sizeW, 0.5*sizeH )
+
+        # New delta.
+        coorDelta.dx = 0.5 * sizeW
+        coorDelta.dy = self.gme.map.corners[3][GridMap.GridMap2D.I_Y] - self.gme.map.corners[0][GridMap.GridMap2D.I_Y] - sizeH
+
+        # Tyr to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
+        self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
+        self.assertEqual( val, 1 )
+        self.assertEqual( flagTerm, False )
+
+        # === Going backwards. From east to west, from north to south. ===
+
+        # Below the ending point.
+        coor = GridMap.BlockCoor( \
+            self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 0.5*sizeW, \
+            self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 1.5*sizeH )
+
+        # Delta of movements.
+        coorDelta = GridMap.BlockCoorDelta( \
+            -(self.gme.map.corners[1][GridMap.GridMap2D.I_X] - self.gme.map.corners[0][GridMap.GridMap2D.I_X] - sizeW), \
+            0.5 * sizeH )
+        
+        # Try to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
+        self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
+        self.assertEqual( val, 1 )
+        self.assertEqual( flagTerm, False )
+
+        # To the west of the ending point.
+        coor = GridMap.BlockCoor( \
+            self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 1.5*sizeW, \
+            self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5*sizeH )
+
+        # Delta of movements.
+        coorDelta = GridMap.BlockCoorDelta( \
+            0.5 * sizeW, \
+            -(self.gme.map.corners[3][GridMap.GridMap2D.I_Y] - self.gme.map.corners[0][GridMap.GridMap2D.I_Y] - sizeH) )
+        
+        # Try to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
+        self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
+        self.assertEqual( val, 1 )
+        self.assertEqual( flagTerm, False )
+
+    def test_try_move_long_distance_out_of_boundary(self):
+        print("test_try_move_long_distance_out_of_boundary")
+
+        sizeW = self.gme.map.get_step_size()[GridMap.GridMap2D.I_X]
+        sizeH = self.gme.map.get_step_size()[GridMap.GridMap2D.I_Y]
+
+        # Above the starting point.
+        coor = GridMap.BlockCoor( 0.5*sizeW, 1.5*sizeH )
+
+        # Delta of movements.
+        coorDelta = GridMap.BlockCoorDelta( \
+            self.gme.map.corners[1][GridMap.GridMap2D.I_X] - self.gme.map.corners[0][GridMap.GridMap2D.I_X] - 0.5*sizeW, \
+            0.5 * sizeH )
+        
+        # Try to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
+        self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
+        self.assertEqual( val, -200 )
+        self.assertEqual( flagTerm, False )
+
+        # To the right of the starting point.
+        coor = GridMap.BlockCoor( 1.5*sizeW, 0.5*sizeH )
+
+        # New delta.
+        coorDelta.dx = 0.5 * sizeW
+        coorDelta.dy = self.gme.map.corners[3][GridMap.GridMap2D.I_Y] - self.gme.map.corners[0][GridMap.GridMap2D.I_Y] - 0.5*sizeH
+
+        # Tyr to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
+        self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
+        self.assertEqual( val, -200 )
+        self.assertEqual( flagTerm, False )
+
+        # === Going backwards. From esat to west, from north to south. ===
+
+        # Below the ending point.
+        coor = GridMap.BlockCoor( \
+            self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 0.5*sizeW, \
+            self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 1.5*sizeH )
+
+        # Delta of movements.
+        coorDelta = GridMap.BlockCoorDelta( \
+            -(self.gme.map.corners[1][GridMap.GridMap2D.I_X] - self.gme.map.corners[0][GridMap.GridMap2D.I_X] - 0.5*sizeW), \
+            0.5 * sizeH )
+        
+        # Try to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
+        self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
+        self.assertEqual( val, -200 )
+        self.assertEqual( flagTerm, False )
+
+        # To the west of the ending point.
+        coor = GridMap.BlockCoor( \
+            self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 1.5*sizeW, \
+            self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5*sizeH )
+
+        # Delta of movements.
+        coorDelta = GridMap.BlockCoorDelta( \
+            0.5 * sizeW, \
+            -(self.gme.map.corners[3][GridMap.GridMap2D.I_Y] - self.gme.map.corners[0][GridMap.GridMap2D.I_Y] - 0.5*sizeH) )
+        
+        # Try to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
+        self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
+        self.assertEqual( val, -200 )
+        self.assertEqual( flagTerm, False )
+
+    def test_move_to_obstacle(self):
+        print("test_move_to_obstacle")
+
+        # ==============================================================
+        # Starting at (7.0, 3.0), aimming at (11.0, 5.0), 
+        # should be stopped by the vertical line of obstacle at (10.0, 4.5).
+        # ==============================================================
+
+        coor = GridMap.BlockCoor( 7.0, 3.0 )
+        coorDelta = GridMap.BlockCoorDelta( 4.0, 2.0)
+
+        # Try to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  4.5 )
+        self.assertEqual( val, -100 )
+        self.assertEqual( flagTerm, False )
+
+        # ==============================================================
+        # Starting at (8.0, 2.0), aimming at (10.0, 6.0), 
+        # should be stopped by the horizontal line of obstacle at (9.5, 5.0).
+        # ==============================================================
+
+        coor = GridMap.BlockCoor( 8.0, 2.0 )
+        coorDelta = GridMap.BlockCoorDelta( 2.0, 4.0)
+
+        # Try to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x, 9.5 )
+        self.assertEqual( coorNew.y, 5.0 )
+        self.assertEqual( val, -100 )
+        self.assertEqual( flagTerm, False )
+
+        # ==============================================================
+        # Starting at (8.0, 2.0), aimming at (11.0, 5.0), 
+        # should be stopped by the southwest corner of obstacle at (10.0, 4.0).
+        # ==============================================================
+
+        coor = GridMap.BlockCoor( 8.0, 2.0 )
+        coorDelta = GridMap.BlockCoorDelta( 3.0, 3.0)
+
+        # Try to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  4.0 )
+        self.assertEqual( val, -100 )
+        self.assertEqual( flagTerm, False )
+
+        # ==============================================================
+        # Starting at (8.0, 3.0), aimming at (10.0, 5.0), 
+        # should be stopped by the southwest corner of obstacle at (10.0, 5.0).
+        # This corner is an intersection of three obstacle blocks.
+        # The aimming point is exactly the intersection point.
+        # ==============================================================
+
+        coor = GridMap.BlockCoor( 8.0, 3.0 )
+        coorDelta = GridMap.BlockCoorDelta( 2.0, 2.0)
+
+        # Try to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -300 )
+        self.assertEqual( flagTerm, False )
+
+        # ==============================================================
+        # Starting at (7.0, 7.0), aimming at (10.0, 4.0), 
+        # should be stopped by the southwest corner of obstacle at (9.0, 5.0).
+        # The stopping point is exactly on the path way.
+        # ==============================================================
+
+        coor = GridMap.BlockCoor( 7.0, 7.0 )
+        coorDelta = GridMap.BlockCoorDelta( 3.0, -3.0)
+
+        # Try to move.
+        coorNew, val, flagTerm = self.gme.try_move( coor, coorDelta )
+
+        # Assertions.
+        self.assertEqual( coorNew.x,  9.0 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -100 )
+        self.assertEqual( flagTerm, False )
+
+    def test_move_to_obstacle_in_horizontal_and_vertical_directions(self):
+        print("test_move_to_obstacle_in_horizontal_and_vertical_directions")
+
+        # Precisely from west to east, stopped by vertical line.
+        coor  = GridMap.BlockCoor( 8.5, 4.5 )
+        delta = GridMap.BlockCoorDelta( 2.0, 0.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  4.5 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Precisely from west to east, stopped by vertical line of the boundary.
+        coor  = GridMap.BlockCoor( 18.5, 4.5 )
+        delta = GridMap.BlockCoorDelta( 2.0, 0.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 20.0 )
+        self.assertEqual( coorNew.y,  4.5 )
+        self.assertEqual( val, -200 )
+        self.assertFalse( ft )
+
+        # Precisely from west to east, stopped by corner.
+        coor  = GridMap.BlockCoor( 8.5, 4.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, 0.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  4.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Precisely from west to east, stopped by corner.
+        # Obstacle is below the horizontal line.
+        coor  = GridMap.BlockCoor( 8.5, 7.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, 0.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  7.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # === From east to west. ===
+
+        # Precisely from east to west, stopped by vertical line.
+        coor  = GridMap.BlockCoor( 12.5, 6.5 )
+        delta = GridMap.BlockCoorDelta( -2.0, 0.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.0 )
+        self.assertEqual( coorNew.y,  6.5 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Precisely from east to west, stopped by vertical line of the boundary.
+        coor  = GridMap.BlockCoor( 1.5, 6.5 )
+        delta = GridMap.BlockCoorDelta( -2.0, 0.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  0.0 )
+        self.assertEqual( coorNew.y,  6.5 )
+        self.assertEqual( val, -200 )
+        self.assertFalse( ft )
+
+        # Precisely from east to west, stopped by corner.
+        # The obstacle is under the horizontal line.
+        coor  = GridMap.BlockCoor( 12.5, 7.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, 0.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.0 )
+        self.assertEqual( coorNew.y,  7.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Precisely from east to west, stopped by corner.
+        coor  = GridMap.BlockCoor( 12.5, 4.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, 0.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.0 )
+        self.assertEqual( coorNew.y,  4.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # === From south to north. ===
+
+        # Precisely from south to north, stopped by horizontal line.
+        coor  = GridMap.BlockCoor( 9.5, 3.5 )
+        delta = GridMap.BlockCoorDelta( 0.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  9.5 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Precisely from south to north, stopped by horizontal line of the boundary.
+        coor  = GridMap.BlockCoor( 11.5, 8.5 )
+        delta = GridMap.BlockCoorDelta( 0.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.5 )
+        self.assertEqual( coorNew.y, 10.0 )
+        self.assertEqual( val, -200 )
+        self.assertFalse( ft )
+
+        # Precisely from south to north, stopped by corner.
+        coor  = GridMap.BlockCoor( 9.0, 3.5 )
+        delta = GridMap.BlockCoorDelta( 0.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  9.0 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Precisely from south to north, stopped by corner.
+        # The obstacle is to the west of the vertical line.
+        coor  = GridMap.BlockCoor( 12.0, 3.5 )
+        delta = GridMap.BlockCoorDelta( 0.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 12.0 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # === From north to south. ===
+
+        # Precisely from north to south, stopped by horizontal line.
+        coor  = GridMap.BlockCoor( 9.5, 7.5 )
+        delta = GridMap.BlockCoorDelta( 0.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  9.5 )
+        self.assertEqual( coorNew.y,  6.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Precisely from north to south, stopped by horizontal line of the boundary.
+        coor  = GridMap.BlockCoor( 9.5, 1.5 )
+        delta = GridMap.BlockCoorDelta( 0.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  9.5 )
+        self.assertEqual( coorNew.y,  0.0 )
+        self.assertEqual( val, -200 )
+        self.assertFalse( ft )
+
+        # Precisely from south to north, stopped by corner.
+        coor  = GridMap.BlockCoor( 9.0, 7.5 )
+        delta = GridMap.BlockCoorDelta( 0.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  9.0 )
+        self.assertEqual( coorNew.y,  6.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Precisely from south to north, stopped by corner.
+        # The obstacle is to the west of the vertical line.
+        coor  = GridMap.BlockCoor( 12.0, 7.5 )
+        delta = GridMap.BlockCoorDelta( 0.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 12.0 )
+        self.assertEqual( coorNew.y,  6.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+    def test_move_to_obstacle_in_northeast_direction(self):
+        print("test_move_to_obstacle_in_northeast_direction")
+
+        # Stopped by corner, obstacle is in northwest.
+        coor  = GridMap.BlockCoor( 10.0, 3.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.0 )
+        self.assertEqual( coorNew.y,  4.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by corner, obstacle is in northeast.
+        # Only one obstacle.
+        coor  = GridMap.BlockCoor( 9.0, 3.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  4.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by vertical line, obstacle is in east.
+        coor  = GridMap.BlockCoor( 9.0, 4.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, 1.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  4.5 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by corner, obstacle is in northeast.
+        # Three obstacles.
+        coor  = GridMap.BlockCoor( 9.0, 4.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -300 )
+        self.assertFalse( ft )
+
+        # Stopped by horizontal line, obstacle is in north.
+        coor  = GridMap.BlockCoor( 9.0, 4.0 )
+        delta = GridMap.BlockCoorDelta( 1.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  9.5 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by corner, obstacle is in southeast.
+        # Only one obstacle.
+        coor  = GridMap.BlockCoor( 8.0, 5.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  9.0 )
+        self.assertEqual( coorNew.y,  6.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # === Boundary involved. ===
+
+        # Stopped by vertical line of boundary.
+        # Boundary is in east.
+        coor  = GridMap.BlockCoor( 19.0, 4.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, 1.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 20.0 )
+        self.assertEqual( coorNew.y,  4.5 )
+        self.assertEqual( val, -200 )
+        self.assertFalse( ft )
+
+        # Stopped by a corner shared by an obstacle and the boundary.
+        # The obstacle in in north. 
+        # The Boundary is in east.
+        coor  = GridMap.BlockCoor( 19.0, 4.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 20.0 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -300 )
+        self.assertFalse( ft )
+
+        # Stopped by horizontal line of boundary.
+        # Boundary is in north
+        coor  = GridMap.BlockCoor( 9.0, 9.0 )
+        delta = GridMap.BlockCoorDelta( 1.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  9.5 )
+        self.assertEqual( coorNew.y, 10.0 )
+        self.assertEqual( val, -200 )
+        self.assertFalse( ft )
+
+        # Stopped by a corner shared by an obstacle and the boundary.
+        # The obstacle in in east. 
+        # The Boundary is in north.
+        coor  = GridMap.BlockCoor( 9.0, 9.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y, 10.0 )
+        self.assertEqual( val, -300 )
+        self.assertFalse( ft )
+
+    def test_move_to_obstacle_in_northwest_direction(self):
+        print("test_move_to_obstacle_in_northwest_direction")
+
+        # Stopped by corner, obstacle is in southwest.
+        coor  = GridMap.BlockCoor( 13.0, 5.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 12.0 )
+        self.assertEqual( coorNew.y,  6.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by corner, obstacle is in northwest.
+        # Only one obstacle.
+        coor  = GridMap.BlockCoor( 13.0, 4.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 12.0 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by horizontal line, obstacle is in north.
+        coor  = GridMap.BlockCoor( 12.0, 4.0 )
+        delta = GridMap.BlockCoorDelta( -1.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.5 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by corner, obstacle is in northwest.
+        # Three obstacles.
+        coor  = GridMap.BlockCoor( 12.0, 4.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.0 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -300 )
+        self.assertFalse( ft )
+
+        # Stopped by vertical line, obstacle is in west.
+        coor  = GridMap.BlockCoor( 12.0, 4.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, 1.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.0 )
+        self.assertEqual( coorNew.y,  4.5 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by corner, obstacle is in northeast.
+        # Only one obstacle.
+        coor  = GridMap.BlockCoor( 11.0, 3.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  4.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # === Boundary involved. ===
+
+        # Stopped by horizontal line of the boundary
+        # The boundary is in north.
+        coor  = GridMap.BlockCoor( 12.0, 9.0 )
+        delta = GridMap.BlockCoorDelta( -1.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.5 )
+        self.assertEqual( coorNew.y, 10.0 )
+        self.assertEqual( val, -200 )
+        self.assertFalse( ft )
+
+        # Stopped by corner shared by an obstacle and the boundary.
+        # The obstacle is in southwest.
+        # The boundary is in north.
+        coor  = GridMap.BlockCoor( 12.0, 9.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.0 )
+        self.assertEqual( coorNew.y, 10.0 )
+        self.assertEqual( val, -300 )
+        self.assertFalse( ft )
+
+        # Stopped by corner shared by an obstacle and the boundary.
+        # The obstacle is in northeast.
+        # The boundary is in west.
+        coor  = GridMap.BlockCoor( 1.0, 4.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, 2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  0.0 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -300 )
+        self.assertFalse( ft )
+
+        # Stopped by vertical line of the boundary
+        # The boundary is in west.
+        coor  = GridMap.BlockCoor( 1.0, 4.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, 1.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  0.0 )
+        self.assertEqual( coorNew.y,  4.5 )
+        self.assertEqual( val, -200 )
+        self.assertFalse( ft )
+
+    def test_move_to_obstacle_in_southwest_direction(self):
+        print("test_move_to_obstacle_in_southwest_direction")
+
+        # Stopped by corner, obstacle is in southeast.
+        coor  = GridMap.BlockCoor( 11.0, 8.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  7.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by corner, obstacle is in southwest.
+        # Only one obstacle.
+        coor  = GridMap.BlockCoor( 12.0, 8.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.0 )
+        self.assertEqual( coorNew.y,  7.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by vertical line, obstacle is in west.
+        coor  = GridMap.BlockCoor( 12.0, 7.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, -1.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.0 )
+        self.assertEqual( coorNew.y,  6.5 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by corner, obstacle is in southwest.
+        # Three obstacles.
+        coor  = GridMap.BlockCoor( 12.0, 7.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.0 )
+        self.assertEqual( coorNew.y,  6.0 )
+        self.assertEqual( val, -300 )
+        self.assertFalse( ft )
+
+        # Stopped by horizontal line, obstacle is in south.
+        coor  = GridMap.BlockCoor( 12.0, 7.0 )
+        delta = GridMap.BlockCoorDelta( -1.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.5 )
+        self.assertEqual( coorNew.y,  6.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by corner, obstacle is in northwest.
+        # Only one obstacle.
+        coor  = GridMap.BlockCoor( 13.0, 6.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 12.0 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # === Boundary involved. ===
+
+        # Stopped by vertical line of boundary
+        # The boundary is in west.
+        coor  = GridMap.BlockCoor( 1.0, 7.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, -1.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  0.0 )
+        self.assertEqual( coorNew.y,  6.5 )
+        self.assertEqual( val, -200 )
+        self.assertFalse( ft )
+
+        # Stopped by shared corner of an obstacle and the boundary.
+        # The obstacle is in southeast.
+        # The boundary is in west.
+        coor  = GridMap.BlockCoor( 1.0, 7.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  0.0 )
+        self.assertEqual( coorNew.y,  6.0 )
+        self.assertEqual( val, -300 )
+        self.assertFalse( ft )
+
+        # Stopped by shared corner of an obstacle and the boundary.
+        # The obstacle is in northwest.
+        # The boundary is in south.
+        coor  = GridMap.BlockCoor( 12.0, 1.0 )
+        delta = GridMap.BlockCoorDelta( -2.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.0 )
+        self.assertEqual( coorNew.y,  0.0 )
+        self.assertEqual( val, -300 )
+        self.assertFalse( ft )
+
+        # Stopped by Horizontal line of boundary
+        # The boundary is in south.
+        coor  = GridMap.BlockCoor( 12.0, 1.0 )
+        delta = GridMap.BlockCoorDelta( -1.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.5 )
+        self.assertEqual( coorNew.y,  0.0 )
+        self.assertEqual( val, -200 )
+        self.assertFalse( ft )
+
+    def test_move_to_obstacle_in_southeast_direction(self):
+        print("test_move_to_obstacle_in_southeast_direction")
+
+        # Stopped by corner, obstacle is in northeast.
+        coor  = GridMap.BlockCoor( 8.0, 6.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  9.0 )
+        self.assertEqual( coorNew.y,  5.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by corner, obstacle is in southeast.
+        # Only one obstacle.
+        coor  = GridMap.BlockCoor( 8.0, 7.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  9.0 )
+        self.assertEqual( coorNew.y,  6.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by horizontal line, obstacle is in south.
+        coor  = GridMap.BlockCoor( 9.0, 7.0 )
+        delta = GridMap.BlockCoorDelta( 1.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  9.5 )
+        self.assertEqual( coorNew.y,  6.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by corner, obstacle is in southeast.
+        # Three obstacles.
+        coor  = GridMap.BlockCoor( 9.0, 7.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  6.0 )
+        self.assertEqual( val, -300 )
+        self.assertFalse( ft )
+
+        # Stopped by vertical line, obstacle is in east.
+        coor  = GridMap.BlockCoor( 9.0, 7.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, -1.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  6.5 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # Stopped by corner, obstacle is in southwest.
+        # Only one obstacle.
+        coor  = GridMap.BlockCoor( 10.0, 8.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 11.0 )
+        self.assertEqual( coorNew.y,  7.0 )
+        self.assertEqual( val, -100 )
+        self.assertFalse( ft )
+
+        # === Boundary involved. ===
+
+        # Stopped by horizontal line of the boundary.
+        # The boundary is in south.
+        coor  = GridMap.BlockCoor( 9.0, 1.0 )
+        delta = GridMap.BlockCoorDelta( 1.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x,  9.5 )
+        self.assertEqual( coorNew.y,  0.0 )
+        self.assertEqual( val, -200 )
+        self.assertFalse( ft )
+
+        # Stopped by a corner shared by an obstacle and the boundary.
+        # The obstacle is in northeast.
+        # The boundary is in south.
+        coor  = GridMap.BlockCoor( 9.0, 1.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 10.0 )
+        self.assertEqual( coorNew.y,  0.0 )
+        self.assertEqual( val, -300 )
+        self.assertFalse( ft )
+
+        # Stopped by a corner shared by an obstacle and the boundary.
+        # The obstacle is in southwest.
+        # The boundary is in east.
+        coor  = GridMap.BlockCoor( 19.0, 7.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, -2.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 20.0 )
+        self.assertEqual( coorNew.y,  6.0 )
+        self.assertEqual( val, -300 )
+        self.assertFalse( ft )
+
+        # Stopped by vertical line of the boundary.
+        # The boundary is in east.
+        coor  = GridMap.BlockCoor( 19.0, 7.0 )
+        delta = GridMap.BlockCoorDelta( 2.0, -1.0 )
+        coorNew, val, ft = self.gme.try_move( coor, delta )
+
+        self.assertEqual( coorNew.x, 20.0 )
+        self.assertEqual( coorNew.y,  6.5 )
+        self.assertEqual( val, -200 )
+        self.assertFalse( ft )
 
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D )
