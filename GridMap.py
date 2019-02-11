@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import copy
+import json
 import math
 import matplotlib.pyplot as plt
 import numpy as np
@@ -281,6 +282,76 @@ class GridMap2D(object):
         self.corners.append( [ (cs[-1] + 1)*w,      rs[0]*h ] )
         self.corners.append( [ (cs[-1] + 1)*w, (rs[-1]+1)*h ] )
         self.corners.append( [        cs[0]*w, (rs[-1]+1)*h ] )
+    
+    def dump_JSON(self, fn):
+        """
+        Save the grid map as a JSON file.
+        fn: String of filename.
+        """
+
+        # Compose a dictionary.
+        d = { \
+            "name": self.name, \
+            "rows": self.rows, \
+            "cols": self.cols, \
+            "origin": self.origin, \
+            "stepSize": self.stepSize, \
+            "outOfBoundValue": self.outOfBoundValue, \
+            "haveStartingBlock": self.haveStartingBlock, \
+            "startingBlockIdx": [ self.startingBlockIdx.r, self.startingBlockIdx.c ], \
+            "haveEndingBlock": self.haveEndingBlock, \
+            "endingBlockIdx": [ self.endingBlockIdx.r, self.endingBlockIdx.c ], \
+            "obstacleIndices": self.obstacleIndices
+            }
+        
+        # Open file.
+        fp = open( fn, "w" )
+
+        # Save JSON file.
+        json.dump( d, fp, indent=4 )
+
+        fp.close()
+    
+    def read_JSON(self, fn):
+        """
+        Read a map from a JSON file. Create all the elements specified in the file.
+        fn: String of filename.
+        """
+
+        if ( not os.path.isfile(fn) ):
+            raise GridMapException("{} does not exist.".format(fn))
+        
+        fp = open( fn, "r" )
+
+        d = json.load(fp)
+
+        fp.close()
+
+        # Populate member variables by d.
+        self.name = d["name"]
+        self.rows = d["rows"]
+        self.cols = d["cols"]
+        self.origin = d["origin"]
+        self.stepSize = d["stepSize"]
+        self.outOfBoundValue = d["outOfBoundValue"]
+
+        self.initialized = False
+        self.initialize()
+
+        if ( True == d["haveStartingBlock"] ):
+            self.set_starting_block( \
+                BlockIndex( \
+                    d["startingBlockIdx"][0], d["startingBlockIdx"][1] ) )
+        
+        if ( True == d["haveEndingBlock"] ):
+            self.set_ending_block( \
+                BlockIndex( \
+                    d["endingBlockIdx"][0], d["endingBlockIdx"][1] ) )
+
+        for obs in d["obstacleIndices"]:
+            self.add_obstacle( \
+                BlockIndex( \
+                    obs[0], obs[1] ) )
     
     def get_block(self, index):
         if ( isinstance( index, BlockIndex ) ):
@@ -913,12 +984,16 @@ class GridMapEnv(object):
 
         return newLoc, value, termFlag, None
 
-    def render(self, pause = 0, flagSave = False):
+    def render(self, pause = 0, flagSave = False, fn = None):
         """Render with matplotlib.
         pause: Time measured in seconds to pause before close the rendered image.
         If pause < 1 then the rendered image will not be closed and the process
         will be blocked.
         flagSave: Save the rendered image if is set True.
+        fn: Filename. If fn is None, a default name scheme will be used. No format extension.
+
+        NOTE: fn should not contain absolute path since the rendered file will be saved
+        under the render directory as a part of the working directory.
         """
 
         if ( self.map is None ):
@@ -956,7 +1031,11 @@ class GridMapEnv(object):
         ax.autoscale()
 
         if ( True == flagSave ):
-            saveFn = "%s/%s_%d-%ds_%dv" % (self.renderDir, self.name, self.nSteps, self.maxSteps, self.totalValue)
+            if ( fn is None ):
+                saveFn = "%s/%s_%d-%ds_%dv" % (self.renderDir, self.name, self.nSteps, self.maxSteps, self.totalValue)
+            else:
+                saveFn = "%s/%s" % (self.renderDir, fn)
+
             plt.savefig( saveFn, dpi = 300, format = "png" )
 
         if ( pause < 1 ):
@@ -966,6 +1045,128 @@ class GridMapEnv(object):
             plt.show( block = False )
             plt.pause( pause )
             plt.close()
+
+    def save(self, fn = None):
+        """
+        Save the environment into the working directory.
+
+        If fn == None, a file with the name of GridMapEnv.json will be
+        saved into the workding directory.
+
+        fn will be used to create file in the working directory.
+        """
+
+        # Check if the map is present.
+        if ( self.map is None ):
+            raise GridMapException("Map must be set in order to save the environment.")
+
+        # Save the map.
+        mapFn = "%s/%s" % ( self.workingDir, "Map.json" )
+        self.map.dump_JSON( mapFn )
+
+        # Create list for agent location history.
+        agentLocsList = []
+        for loc in self.agentLocs:
+            agentLocsList.append( [loc.x, loc.y] )
+
+        # Create list for agent action history.
+        agentActsList = []
+        for act in self.agentActs:
+            agentActsList.append( [act.dx, act.dy] )
+
+        # Compose a dictionary.
+        d = { \
+            "name": self.name, \
+            "mapFn": "Map.json", \
+            "maxSteps": self.maxSteps, \
+            "visAgentRadius": self.visAgentRadius, \
+            "visPathArrowWidth": self.visPathArrowWidth, \
+            "agentCurrentLoc": [ self.agentCurrentLoc.x, self.agentCurrentLoc.y ], \
+            "agentCurrentAct": [ self.agentCurrentAct.dx, self.agentCurrentAct.dy ], \
+            "agentLocs": agentLocsList, \
+            "agentActs": agentActsList, \
+            "isTerminated": self.isTerminated, \
+            "nSteps": self.nSteps, \
+            "totalValue": self.totalValue
+            }
+
+        if ( fn is None ):
+            strFn = "%s/%s" % ( self.workingDir, "GridMapEnv.json" )
+        else:
+            strFn = "%s/%s" % ( self.workingDir, fn )
+
+        # Open the file.
+        fp = open( strFn, "w" )
+
+        # Save the file.
+        json.dump( d, fp, indent=3 )
+
+        fp.close()
+
+    def load(self, workingDir, fn = None):
+        """
+        Load the environment from a file.
+
+        if fn == None, a file with the name of GridMapEnv.json will be
+        loaded.
+
+        fn is used as locating inside the workding directory.
+        """
+
+        if ( not os.path.isdir(workingDir) ):
+            raise GridMapException("Working directory {} does not exist.".format(workingDir))
+
+        # Open the file.
+        if ( fn is None ):
+            strFn = "%s/%s" % ( workingDir, "GridMapEnv.json" )
+        else:
+            strFn = "%s/%s" % ( workingDir, fn )
+
+        fp = open( strFn, "r" )
+
+        d = json.load( fp )
+
+        fp.close()
+
+        # Update current environment.
+        self.workingDir = workingDir
+
+        self.name = d["name"]
+        self.renderDir = "%s/%s" % ( self.workingDir, "Render" )
+        self.maxSteps = d["maxSteps"]
+
+        # Create a new map.
+        m = GridMap2D( rows = 1, cols = 1 ) # A temporay map.
+        m.read_JSON( self.workingDir + "/" + d["mapFn"] )
+
+        # Set map.
+        self.map = m
+
+        # Reset.
+        self.reset()
+
+        # Update other member variables.
+        self.agentCurrentLoc = BlockCoor( \
+            d["agentCurrentLoc"][0], d["agentCurrentLoc"][1] )
+        self.agentCurrentAct = BlockCoorDelta( \
+            d["agentCurrentAct"][0], d["agentCurrentAct"][1] )
+        
+        # Agent location history.
+        self.agentLocs = []
+        for loc in d["agentLocs"]:
+            self.agentLocs.append( \
+                BlockCoor( loc[0], loc[1] ) )
+        
+        # Agent action history.
+        self.agentActs = []
+        for act in d["agentActs"]:
+            self.agentActs.append( \
+                BlockCoorDelta( act[0], act[1] ) )
+        
+        # Other member variables.
+        self.isTerminated = d["isTerminated"]
+        self.nSteps = d["nSteps"]
+        self.totalValue = d["totalValue"]
 
     def can_move_east(self, coor):
         """
@@ -1497,6 +1698,50 @@ class GridMapEnv(object):
             flagTerm = True
 
         return coor, val, flagTerm
+
+    def get_string_agent_locs(self):
+        s = ""
+
+        for loc in self.agentLocs:
+            s += "(%f, %f)\n" % (loc.x, loc.y)
+
+        return s
+
+    def get_string_agent_acts(self):
+        s = ""
+
+        for act in self.agentActs:
+            s += "(%f, %f)\n" % (act.dx, act.dy)
+        
+        return s
+
+    def __str__(self):
+        s = "GridMapEnv %s\n" % (self.name)
+
+        # Map.
+        if ( self.map is None ):
+            s += "(No map)\n"
+        else:
+            s += "Map: %s\n" % (self.map.name)
+        
+        s += "Working directory: %s\nRender directory: %s\n" % (self.workingDir, self.renderDir)
+        s += "maxSteps = %d\n" % (self.maxSteps)
+
+        s += "visAgentRadius = %f\n" % (self.visAgentRadius)
+        s += "visPathArrowWidth = %f\n" % (self.visPathArrowWidth)
+
+        s += "nSteps = %d\n" % (self.nSteps)
+        s += "totalValue = %f\n" % ( self.totalValue )
+        s += "isTerminated = {}\n".format( self.isTerminated )
+
+        s += "agentCurrentLoc: {}\n".format( self.agentCurrentLoc )
+        s += "agentCurrentAct: {}\n".format( self.agentCurrentAct )
+
+        # History of locations and actions.
+        s += "agentLocs: \n%s\n" % ( self.get_string_agent_locs() )
+        s += "agentActs: \n%s\n" % ( self.get_string_agent_acts() )
+
+        return s
 
 if __name__ == "__main__":
     print("Hello GridMap.")
