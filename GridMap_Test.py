@@ -586,7 +586,8 @@ class TestGridMapEnv(unittest.TestCase):
         gridMap.add_obstacle((6, 10))
         gridMap.add_obstacle((9, 10))
 
-        self.gme = GridMap.GridMapEnv( gridMap = gridMap )
+        self.gme = GridMap.GridMapEnv( gridMap = gridMap, workingDir = "./WD_TestGridMapEnv" )
+        self.gme.reset()
 
         # # Describe the map.
         # print(self.gme.map)
@@ -1906,6 +1907,47 @@ class TestGridMapEnv(unittest.TestCase):
         self.assertEqual( coorNew.y,  6.5 )
         self.assertEqual( val, -200 )
         self.assertFalse( ft )
+
+    def test_step_from_start_to_end(self):
+        print("test_step_from_start_to_end")
+
+        stepSizeX = self.gme.map.get_step_size()[GridMap.GridMap2D.I_X]
+        stepSizeY = self.gme.map.get_step_size()[GridMap.GridMap2D.I_Y]
+
+        # Reset the environment.
+        self.gme.reset()
+
+        totalVal = 0
+
+        # Move north with 1 step.
+        action = GridMap.BlockCoorDelta( 0, stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        self.assertFalse( flagTerm )
+        totalVal += val
+
+        # Move east with 8 steps.
+        action = GridMap.BlockCoorDelta( 18 * stepSizeX, 0 )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        self.assertFalse( flagTerm )
+        totalVal += val
+
+        # Move north with 8 steps.
+        action = GridMap.BlockCoorDelta( 0, 8 * stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        self.assertFalse( flagTerm )
+        totalVal += val
+
+        # Move east with 1 step. In the ending point.
+        action = GridMap.BlockCoorDelta( stepSizeX, 0 )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        self.assertTrue( flagTerm )
+        totalVal += val
+
+        self.assertEqual( coor.x, self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 0.5 * stepSizeX )
+        self.assertEqual( coor.y, self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5 * stepSizeY )
+        self.assertEqual( totalVal, 103 )
+
+        self.gme.render(3, flagSave=True)
 
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D )

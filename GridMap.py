@@ -5,6 +5,7 @@ import copy
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 import LineIntersection2D
 
@@ -780,16 +781,37 @@ origin = [%d, %d], size = [%d, %d].""" \
         return res
 
 class GridMapEnv(object):
-    def __init__(self, name = "DefaultGridMapEnv", gridMap = None):
+    def __init__(self, name = "DefaultGridMapEnv", gridMap = None, workingDir = "./"):
         self.name = name
         self.map  = gridMap
+        self.workingDir = workingDir
+        self.renderDir = os.path.join( self.workingDir, "Render" )
+
         self.agentStartingLoc = None # Should be an object of BlockCoor.
 
         self.isTerminated = False
         self.nSteps = 0
+        self.maxSteps = 0 # Set 0 for no maximum steps.
 
         self.agentCurrentLoc = copy.deepcopy( self.agentStartingLoc )
         self.agentCurrentAct = None # Should be an object of BlockCoorDelta.
+
+        self.agentLocs = [ copy.deepcopy(self.agentCurrentLoc) ]
+        self.agentActs = [ ] # Should be a list of objects of BlockCoorDelta.
+
+        self.totalValue = 0
+
+        self.visAgentRadius    = 1.0
+        self.visPathArrowWidth = 1.0
+
+    def set_max_steps(self, m):
+        assert( isinstance( m, (int, long) ) )
+        assert( m >= 0 )
+
+        self.maxSteps = m
+
+    def get_max_steps(self):
+        return self.maxSteps
 
     def get_state_size(self):
         return self.agentCurrentLoc.size
@@ -797,17 +819,32 @@ class GridMapEnv(object):
     def get_action_size(self):
         return self.agentCurrentAct.size
     
+    def is_terminated(self):
+        return self.isTerminated
+
     def reset(self):
         """Reset the evironment."""
+
+        if ( self.map is None ):
+            raise GridMapException("Map is None.")
+
+        if ( not os.path.isdir( self.workingDir ) ):
+            os.makedirs( self.workingDir )
+
+        if ( not os.path.isdir( self.renderDir ) ):
+            os.makedirs( self.renderDir )
 
         # Get the index of the starting point.
         index = self.map.get_index_starting_point()
         # Get the coordinates of index.
         coor = self.map.convert_to_coordinates(index)
 
+        sizeW = self.map.get_step_size()[GridMap2D.I_X]
+        sizeH = self.map.get_step_size()[GridMap2D.I_Y]
+
         self.agentStartingLoc = BlockCoor( \
-            coor.x + self.map.get_step_size[GridMap2D.I_X] / 2.0, \
-            coor.y + self.map.get_step_size[GridMap2D.I_Y] / 2.0 \
+            coor.x + sizeW / 2.0, \
+            coor.y + sizeH / 2.0 \
         )
         
         # Reset the location of the agent.
@@ -816,11 +853,26 @@ class GridMapEnv(object):
         # Clear the cuurent action of the agent.
         self.agentCurrentAct = BlockCoorDelta( 0, 0 )
 
+        # Clear the history.
+        self.agentLocs = [ copy.deepcopy( self.agentStartingLoc ) ]
+        self.agentActs = [ ]
+
         # Clear step counter.
         self.nSteps = 0
 
+        # Clear total value.
+        self.totalValue = 0
+
         # Clear termination flag.
         self.isTerminated = False
+
+        # Visulization.
+        if ( sizeW <= sizeH ):
+            self.visAgentRadius    = sizeW / 10.0
+            self.visPathArrowWidth = sizeW / 10.0
+        else:
+            self.visAgentRadius    = sizeH / 10.0
+            self.visPathArrowWidth = sizeW / 10.0
 
     def step(self, action):
         """
@@ -835,25 +887,44 @@ class GridMapEnv(object):
         
         self.agentCurrentAct = copy.deepcopy( action )
 
+        # Move.
         newLoc, value, termFlag = self.try_move( self.agentCurrentLoc, self.agentCurrentAct )
 
+        # Update current location of the agent.
+        self.agentCurrentLoc = copy.deepcopy( newLoc )
+
+        # Save the history.
+        self.agentLocs.append( copy.deepcopy( self.agentCurrentLoc ) )
+        self.agentActs.append( copy.deepcopy( self.agentCurrentAct ) )
+
+        # Update counter.
         self.nSteps += 1
+
+        # Update total value.
+        self.totalValue += value
+
+        # Check termination status.
+        if ( self.maxSteps > 0 ):
+            if ( self.nSteps >= self.maxSteps ):
+                self.isTerminated = True
 
         if ( True == termFlag ):
             self.isTerminated = True
 
         return newLoc, value, termFlag, None
 
-    def render(self, pause = 0):
+    def render(self, pause = 0, flagSave = False):
         """Render with matplotlib.
         pause: Time measured in seconds to pause before close the rendered image.
-        If pause < 1 then the rendered image will not be closed.
+        If pause < 1 then the rendered image will not be closed and the process
+        will be blocked.
+        flagSave: Save the rendered image if is set True.
         """
 
         if ( self.map is None ):
-            raise ValueError("self.map is None")
+            raise GridMapException("self.map is None")
 
-        from matplotlib.patches import Rectangle
+        from matplotlib.patches import Rectangle, Circle
 
         fig, ax = plt.subplots(1)
 
@@ -864,7 +935,29 @@ class GridMapEnv(object):
                 rect.set_edgecolor("k")
                 ax.add_patch(rect)
         
+        # Agent locations.
+        for loc in self.agentLocs:
+            circle = Circle( (loc.x, loc.y), self.visAgentRadius, fill = True )
+            circle.set_facecolor( "#FFFF0080" )
+            circle.set_edgecolor( "k" )
+            ax.add_patch(circle)
+
+        # Agent path.
+        n = len( self.agentLocs )
+        if ( n > 1 ):
+            for i in range(n-1):
+                loc0 = self.agentLocs[i]
+                loc1 = self.agentLocs[i+1]
+
+                plt.arrow( loc0.x, loc0.y, loc1.x - loc0.x, loc1.y - loc0.y, \
+                    width=self.visPathArrowWidth, \
+                    alpha=0.5, color='k', length_includes_head=True )
+
         ax.autoscale()
+
+        if ( True == flagSave ):
+            saveFn = "%s/%s_%d-%ds_%dv" % (self.renderDir, self.name, self.nSteps, self.maxSteps, self.totalValue)
+            plt.savefig( saveFn, dpi = 300, format = "png" )
 
         if ( pause < 1 ):
             plt.show()
