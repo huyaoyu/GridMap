@@ -13,8 +13,8 @@ class TestGridMap2D(unittest.TestCase):
         self.map.initialize()
 
         # Overwrite blocks.
-        self.map.set_starting_point((0, 0))
-        self.map.set_ending_point((9, 19))
+        self.map.set_starting_block((0, 0))
+        self.map.set_ending_block((9, 19))
         self.map.add_obstacle((0, 10))
         self.map.add_obstacle((4, 10))
         self.map.add_obstacle((5,  0))
@@ -57,11 +57,11 @@ class TestGridMap2D(unittest.TestCase):
         print("test_get_block")
 
         index = GridMap.BlockIndex( 0, 0 )
-        self.assertTrue( isinstance(self.map.get_block(index), GridMap.StartingPoint) )
+        self.assertTrue( isinstance(self.map.get_block(index), GridMap.StartingBlock) )
 
         index.r = self.rows - 1
         index.c = self.cols - 1
-        self.assertTrue( isinstance(self.map.get_block(index), GridMap.EndingPoint) )
+        self.assertTrue( isinstance(self.map.get_block(index), GridMap.EndingBlock) )
         
         index.r = 5; index.c = 10
         self.assertTrue( isinstance(self.map.get_block(index), GridMap.ObstacleBlock) )
@@ -102,107 +102,107 @@ class TestGridMap2D(unittest.TestCase):
         index.c = self.cols - 1
         self.assertFalse( self.map.is_obstacle_block( index ) )
 
-    def test_is_starting_point(self):
-        print("test_is_starting_point")
+    def test_is_starting_block(self):
+        print("test_is_starting_block")
 
         index = GridMap.BlockIndex( 0, 0 )
-        self.assertTrue( self.map.is_starting_point( index ) )
+        self.assertTrue( self.map.is_starting_block( index ) )
         
         index.r = 4
         index.c = 9
-        self.assertFalse( self.map.is_starting_point( index ) )
+        self.assertFalse( self.map.is_starting_block( index ) )
 
         index.r = 4
         index.c = 10
-        self.assertFalse( self.map.is_starting_point( index ) )
+        self.assertFalse( self.map.is_starting_block( index ) )
 
         index.r = self.rows - 1
         index.c = self.cols - 1
-        self.assertFalse( self.map.is_starting_point( index ) )
+        self.assertFalse( self.map.is_starting_block( index ) )
 
-    def test_is_ending_point(self):
-        print("test_is_starting_point")
+    def test_is_ending_block(self):
+        print("test_is_starting_block")
         
         index = GridMap.BlockIndex( 0, 0 )
-        self.assertFalse( self.map.is_ending_point( index ) )
+        self.assertFalse( self.map.is_ending_block( index ) )
         
         index.r = 4
         index.c = 9
-        self.assertFalse( self.map.is_ending_point( index ) )
+        self.assertFalse( self.map.is_ending_block( index ) )
 
         index.r = 4
         index.c = 10
-        self.assertFalse( self.map.is_ending_point( index ) )
+        self.assertFalse( self.map.is_ending_block( index ) )
 
         index.r = self.rows - 1
         index.c = self.cols - 1
-        self.assertTrue( self.map.is_ending_point( index ) )
+        self.assertTrue( self.map.is_ending_block( index ) )
 
     def test_get_step_size(self):
         print("test_get_step_size")
 
         self.assertEqual( self.map.get_step_size(), [1, 1] )
 
-    def test_get_index_starting_point(self):
-        print("test_get_index_starting_point")
+    def test_get_index_starting_block(self):
+        print("test_get_index_starting_block")
 
-        self.assertEqual( self.map.get_index_starting_point().r, 0 )
-        self.assertEqual( self.map.get_index_starting_point().c, 0 )
+        self.assertEqual( self.map.get_index_starting_block().r, 0 )
+        self.assertEqual( self.map.get_index_starting_block().c, 0 )
 
-    def test_get_index_ending_point(self):
-        print("test_get_index_ending_point")
+    def test_get_index_ending_block(self):
+        print("test_get_index_ending_block")
 
-        self.assertEqual( self.map.get_index_ending_point().r, self.rows-1 )
-        self.assertEqual( self.map.get_index_ending_point().c, self.cols-1 )
+        self.assertEqual( self.map.get_index_ending_block().r, self.rows-1 )
+        self.assertEqual( self.map.get_index_ending_block().c, self.cols-1 )
 
-    def test_is_in_ending_point(self):
-        print("test_is_in_ending_point")
+    def test_is_in_ending_block(self):
+        print("test_is_in_ending_block")
 
         coor = GridMap.BlockCoor( \
             (self.cols-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_X], \
             (self.rows-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_Y] )
-        self.assertTrue( self.map.is_in_ending_point( coor ) )
+        self.assertTrue( self.map.is_in_ending_block( coor ) )
 
-        # Not in ending point.
+        # Not in ending block.
         coor.x = (self.cols-1) * self.map.get_step_size()[GridMap.GridMap2D.I_X]
-        self.assertFalse( self.map.is_in_ending_point( coor ) )
+        self.assertFalse( self.map.is_in_ending_block( coor ) )
 
         coor.y = (self.rows-1) * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
-        self.assertFalse( self.map.is_in_ending_point( coor ) )
+        self.assertFalse( self.map.is_in_ending_block( coor ) )
 
         coor.x = self.cols * self.map.get_step_size()[GridMap.GridMap2D.I_X]
-        self.assertFalse( self.map.is_in_ending_point( coor ) )
+        self.assertFalse( self.map.is_in_ending_block( coor ) )
 
         coor.y = self.rows * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
-        self.assertFalse( self.map.is_in_ending_point( coor ) )
+        self.assertFalse( self.map.is_in_ending_block( coor ) )
 
         coor.x = (self.cols-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_X]
-        self.assertFalse( self.map.is_in_ending_point( coor ) )
+        self.assertFalse( self.map.is_in_ending_block( coor ) )
 
         coor.x = (self.cols-1.0) * self.map.get_step_size()[GridMap.GridMap2D.I_X]
         coor.y = (self.rows-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
-        self.assertFalse( self.map.is_in_ending_point( coor ) )
+        self.assertFalse( self.map.is_in_ending_block( coor ) )
 
         coor.x = (self.cols-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_X]
         coor.y = (self.rows-1.0) * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
-        self.assertFalse( self.map.is_in_ending_point( coor ) )
+        self.assertFalse( self.map.is_in_ending_block( coor ) )
 
         coor.x = (self.cols-0.0) * self.map.get_step_size()[GridMap.GridMap2D.I_X]
         coor.y = (self.rows-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
-        self.assertFalse( self.map.is_in_ending_point( coor ) )
+        self.assertFalse( self.map.is_in_ending_block( coor ) )
 
-    def test_set_starting_point(self):
-        print("test_set_starting_point")
+    def test_set_starting_block(self):
+        print("test_set_starting_block")
 
-        # Get the index of the original starting point.
-        idxOri = self.map.get_index_starting_point()
+        # Get the index of the original starting block.
+        idxOri = self.map.get_index_starting_block()
 
-        # Set new starting point.
+        # Set new starting block.
         idxNew = GridMap.BlockIndex( 1, 2 )
-        self.map.set_starting_point( idxNew )
+        self.map.set_starting_block( idxNew )
 
-        # Test the new set starting point.
-        idxNew2 = self.map.get_index_starting_point()
+        # Test the new set starting block.
+        idxNew2 = self.map.get_index_starting_block()
         self.assertEqual( idxNew2.r, idxNew.r )
         self.assertEqual( idxNew2.c, idxNew.c )
 
@@ -211,23 +211,23 @@ class TestGridMap2D(unittest.TestCase):
         self.assertTrue( isinstance( self.map.get_block(idxOri), GridMap.NormalBlock ) )
 
         # Recover the original staring point.
-        self.map.set_starting_point( idxOri )
+        self.map.set_starting_block( idxOri )
 
         # The idxNew point now should be a NormalBlock.
         self.assertTrue( isinstance( self.map.get_block(idxNew), GridMap.NormalBlock ) )
 
-    def test_set_ending_point(self):
-        print("test_set_ending_point")
+    def test_set_ending_block(self):
+        print("test_set_ending_block")
 
-        # Get the index of the original ending point.
-        idxOri = self.map.get_index_ending_point()
+        # Get the index of the original ending block.
+        idxOri = self.map.get_index_ending_block()
 
-        # Set new ending point.
+        # Set new ending block.
         idxNew = GridMap.BlockIndex( self.rows - 2, self.cols - 3 )
-        self.map.set_ending_point( idxNew )
+        self.map.set_ending_block( idxNew )
 
-        # Test the new set ending point.
-        idxNew2 = self.map.get_index_ending_point()
+        # Test the new set ending block.
+        idxNew2 = self.map.get_index_ending_block()
         self.assertEqual( idxNew2.r, idxNew.r )
         self.assertEqual( idxNew2.c, idxNew.c )
 
@@ -235,8 +235,8 @@ class TestGridMap2D(unittest.TestCase):
         # import ipdb; ipdb.set_trace()
         self.assertTrue( isinstance( self.map.get_block(idxOri), GridMap.NormalBlock ) )
 
-        # Recover the original ending point.
-        self.map.set_ending_point( idxOri )
+        # Recover the original ending block.
+        self.map.set_ending_block( idxOri )
 
         # The idxNew point now should be a NormalBlock.
         self.assertTrue( isinstance( self.map.get_block(idxNew), GridMap.NormalBlock ) )
@@ -574,8 +574,8 @@ class TestGridMapEnv(unittest.TestCase):
         gridMap = GridMap.GridMap2D(self.rows, self.cols, outOfBoundValue=-200)
         gridMap.initialize()
         # Overwrite blocks.
-        gridMap.set_starting_point((0, 0))
-        gridMap.set_ending_point((9, 19))
+        gridMap.set_starting_block((0, 0))
+        gridMap.set_ending_block((9, 19))
         gridMap.add_obstacle((0, 10))
         gridMap.add_obstacle((4, 10))
         gridMap.add_obstacle((5,  0))
@@ -988,7 +988,7 @@ class TestGridMapEnv(unittest.TestCase):
         self.assertEqual( val, 1 )
         self.assertEqual( flagTerm, False )
 
-        # Move into ending point.
+        # Move into ending block.
         coor.x = self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 1.5 * sizeW
         coor.y = self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 1.5 * sizeH
         
@@ -1036,7 +1036,7 @@ class TestGridMapEnv(unittest.TestCase):
         sizeW = self.gme.map.get_step_size()[GridMap.GridMap2D.I_X]
         sizeH = self.gme.map.get_step_size()[GridMap.GridMap2D.I_Y]
 
-        # Above the starting point.
+        # Above the starting block.
         coor = GridMap.BlockCoor( 0.5*sizeW, 1.5*sizeH )
 
         # Delta of movements.
@@ -1053,7 +1053,7 @@ class TestGridMapEnv(unittest.TestCase):
         self.assertEqual( val, 1 )
         self.assertEqual( flagTerm, False )
 
-        # To the riight of the starting point.
+        # To the riight of the starting block.
         coor = GridMap.BlockCoor( 1.5*sizeW, 0.5*sizeH )
 
         # New delta.
@@ -1071,7 +1071,7 @@ class TestGridMapEnv(unittest.TestCase):
 
         # === Going backwards. From east to west, from north to south. ===
 
-        # Below the ending point.
+        # Below the ending block.
         coor = GridMap.BlockCoor( \
             self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 0.5*sizeW, \
             self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 1.5*sizeH )
@@ -1090,7 +1090,7 @@ class TestGridMapEnv(unittest.TestCase):
         self.assertEqual( val, 1 )
         self.assertEqual( flagTerm, False )
 
-        # To the west of the ending point.
+        # To the west of the ending block.
         coor = GridMap.BlockCoor( \
             self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 1.5*sizeW, \
             self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5*sizeH )
@@ -1115,7 +1115,7 @@ class TestGridMapEnv(unittest.TestCase):
         sizeW = self.gme.map.get_step_size()[GridMap.GridMap2D.I_X]
         sizeH = self.gme.map.get_step_size()[GridMap.GridMap2D.I_Y]
 
-        # Above the starting point.
+        # Above the starting block.
         coor = GridMap.BlockCoor( 0.5*sizeW, 1.5*sizeH )
 
         # Delta of movements.
@@ -1132,7 +1132,7 @@ class TestGridMapEnv(unittest.TestCase):
         self.assertEqual( val, -200 )
         self.assertEqual( flagTerm, False )
 
-        # To the right of the starting point.
+        # To the right of the starting block.
         coor = GridMap.BlockCoor( 1.5*sizeW, 0.5*sizeH )
 
         # New delta.
@@ -1150,7 +1150,7 @@ class TestGridMapEnv(unittest.TestCase):
 
         # === Going backwards. From esat to west, from north to south. ===
 
-        # Below the ending point.
+        # Below the ending block.
         coor = GridMap.BlockCoor( \
             self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 0.5*sizeW, \
             self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 1.5*sizeH )
@@ -1169,7 +1169,7 @@ class TestGridMapEnv(unittest.TestCase):
         self.assertEqual( val, -200 )
         self.assertEqual( flagTerm, False )
 
-        # To the west of the ending point.
+        # To the west of the ending block.
         coor = GridMap.BlockCoor( \
             self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 1.5*sizeW, \
             self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5*sizeH )
@@ -1937,7 +1937,7 @@ class TestGridMapEnv(unittest.TestCase):
         self.assertFalse( flagTerm )
         totalVal += val
 
-        # Move east with 1 step. In the ending point.
+        # Move east with 1 step. In the ending block.
         action = GridMap.BlockCoorDelta( stepSizeX, 0 )
         coor, val, flagTerm, _ = self.gme.step( action )
         self.assertTrue( flagTerm )
