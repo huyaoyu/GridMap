@@ -8,5 +8,5 @@ setup(name='WorkFlow',
       author='Yaoyu Hu',
       author_email='yyhu_live@outlook.com',
       url='huyaoyu.com',
-      packages=['GridMap', 'EnvInterfaces', 'LineIntersection2D']
+      packages=['GM']
      )
