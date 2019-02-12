@@ -36,8 +36,8 @@ class TestGridMap2D(unittest.TestCase):
         self.assertEqual( self.map.evaluate_coordinate( (  0.5,  0.5) ),    0 )
         self.assertEqual( self.map.evaluate_coordinate( (19.99, 9.99) ),  100 )
         self.assertEqual( self.map.evaluate_coordinate( ( 20.0, 10.0) ), -200 )
-        self.assertEqual( self.map.evaluate_coordinate( (19.99, 0.01) ),    1 )
-        self.assertEqual( self.map.evaluate_coordinate( ( 0.01, 9.99) ),    1 )
+        self.assertEqual( self.map.evaluate_coordinate( (19.99, 0.01) ),   -1 )
+        self.assertEqual( self.map.evaluate_coordinate( ( 0.01, 9.99) ),   -1 )
         self.assertEqual( self.map.evaluate_coordinate( ( 0.00, 10.0) ), -200 )
         self.assertEqual( self.map.evaluate_coordinate( (   10,    4) ), -100 )
         self.assertEqual( self.map.evaluate_coordinate( (   10,    5) ), -300 )
@@ -45,7 +45,7 @@ class TestGridMap2D(unittest.TestCase):
         self.assertEqual( self.map.evaluate_coordinate( (   10,    7) ), -100 )
         self.assertEqual( self.map.evaluate_coordinate( ( 10.5,    4) ), -100 )
         self.assertEqual( self.map.evaluate_coordinate( ( 10.5,    7) ), -100 )
-        self.assertEqual( self.map.evaluate_coordinate( (    9,  4.5) ),    1 )
+        self.assertEqual( self.map.evaluate_coordinate( (    9,  4.5) ),   -1 )
         self.assertEqual( self.map.evaluate_coordinate( (10.99, 4.99) ), -100 )
 
         self.assertRaises( GridMap.GridMapException, self.map.evaluate_coordinate, (   -1,   -1) )
@@ -1001,7 +1001,7 @@ class TestGridMapEnv(unittest.TestCase):
 
         self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
         self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
-        self.assertEqual( val, 1 )
+        self.assertEqual( val, -1 )
         self.assertEqual( flagTerm, False )
 
         # Move into ending block.
@@ -1066,7 +1066,7 @@ class TestGridMapEnv(unittest.TestCase):
         # Assertions.
         self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
         self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
-        self.assertEqual( val, 1 )
+        self.assertEqual( val, -1 )
         self.assertEqual( flagTerm, False )
 
         # To the riight of the starting block.
@@ -1082,7 +1082,7 @@ class TestGridMapEnv(unittest.TestCase):
         # Assertions.
         self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
         self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
-        self.assertEqual( val, 1 )
+        self.assertEqual( val, -1 )
         self.assertEqual( flagTerm, False )
 
         # === Going backwards. From east to west, from north to south. ===
@@ -1103,7 +1103,7 @@ class TestGridMapEnv(unittest.TestCase):
         # Assertions.
         self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
         self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
-        self.assertEqual( val, 1 )
+        self.assertEqual( val, -1 )
         self.assertEqual( flagTerm, False )
 
         # To the west of the ending block.
@@ -1122,7 +1122,7 @@ class TestGridMapEnv(unittest.TestCase):
         # Assertions.
         self.assertEqual( coorNew.x, coor.x + coorDelta.dx )
         self.assertEqual( coorNew.y, coor.y + coorDelta.dy )
-        self.assertEqual( val, 1 )
+        self.assertEqual( val, -1 )
         self.assertEqual( flagTerm, False )
 
     def test_try_move_long_distance_out_of_boundary(self):
@@ -1962,7 +1962,7 @@ class TestGridMapEnv(unittest.TestCase):
 
         self.assertEqual( coor.x, self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 0.5 * stepSizeX )
         self.assertEqual( coor.y, self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5 * stepSizeY )
-        self.assertEqual( totalVal, 103 )
+        self.assertEqual( totalVal, 97 )
 
         if ( True == flagRender ):
             self.gme.render(3, flagSave=True)
@@ -2004,7 +2004,7 @@ class TestGridMapEnv(unittest.TestCase):
 
         self.assertEqual( coor.x, self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 0.5 * stepSizeX )
         self.assertEqual( coor.y, self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5 * stepSizeY )
-        self.assertEqual( totalVal, 103 )
+        self.assertEqual( totalVal, 97 )
 
         self.gme.render(3, flagSave=True, fn="test_step_from_start_to_end_02")
 
@@ -2072,6 +2072,25 @@ class TestGridMapEnv_RLTrain(unittest.TestCase):
 
         print(coorNew)
 
+    def test_special_movement_02(self):
+        print("test_special_movement_02")
+
+        # Failed case from RL training.
+        # coor(0.5, 0.5)
+        # CoorDelta(1.42219106864, 0.700193069679)
+        # Issue: Never stop.
+
+        coor = GridMap.BlockCoor( 0.5, 0.5 )
+        action = GridMap.BlockCoorDelta( 1.42219106864, 0.700193069679 )
+
+        # Overwite the internal state.
+        self.gme.agentCurrentLoc = copy.deepcopy( coor )
+
+        # Step.
+        # import ipdb; ipdb.set_trace()
+        coorNew, val, flagTerm, _ = self.gme.step( action )
+
+        print(coorNew)
 
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D )

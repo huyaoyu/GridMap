@@ -16,6 +16,25 @@ def two_point_distance(x0, y0, x1, y1):
 
     return math.sqrt( dx**2 + dy**2 )
 
+def round_if_needed(x, eps = 1e-6):
+    """Rount to the nearest integer if x falls into the eps around a integer."""
+    
+    if ( isinstance( x, (int, long) ) ):
+        return x
+
+    if ( x is None ):
+        return x
+
+    temp = np.ceil(x)
+    if ( temp - x < eps ):
+        return temp
+
+    temp = np.floor(x)
+    if ( x - temp < eps ):
+        return temp
+
+    return x
+
 class GridMapException(Exception):
     def __init__(self, msg):
         self.msg = msg
@@ -146,7 +165,7 @@ class Block(object):
         return self.corners[idx]
 
 class NormalBlock(Block):
-    def __init__(self, x = 0, y = 0, h = 1, w = 1, value = 1):
+    def __init__(self, x = 0, y = 0, h = 1, w = 1, value = -1):
         super(NormalBlock, self).__init__(x, y, h, w)
 
         # Member variables defined in the super classes.
@@ -255,7 +274,7 @@ class GridMap2D(object):
 
         self.obstacleIndices = []
 
-    def initialize(self, value = 1):
+    def initialize(self, value = -1):
         if ( True == self.isInitialized ):
             raise GridMapException("Map already initialized.")
 
@@ -1594,10 +1613,16 @@ class GridMapEnv(object):
                     coorOri.x, coorOri.y, coorOri.x + coorDelta.dx, coorOri.y + coorDelta.dy, \
                     coorV.x, self.map.corners[0][GridMap2D.I_Y], coorV.x, self.map.corners[3][GridMap2D.I_Y] )
 
+                xV = round_if_needed(xV)
+                yV = round_if_needed(yV)
+
                 [xH, yH], flagH = LineIntersection2D.line_intersect( \
                     coorOri.x, coorOri.y, coorOri.x + coorDelta.dx, coorOri.y + coorDelta.dy, \
                     self.map.corners[0][GridMap2D.I_X], coorH.y, self.map.corners[1][GridMap2D.I_X], coorH.y )
                 
+                xH = round_if_needed(xH)
+                yH = round_if_needed(yH)
+
                 if ( LineIntersection2D.VALID_INTERSECTION == flagV ):
                     distV = two_point_distance( coor.x, coor.y, xV, yV )
                 else:

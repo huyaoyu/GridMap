@@ -12,6 +12,22 @@ FALL_OUT_INTERSECTION = 1
 PARALLAL              = 2
 NO_VALID_INTERSECTION = 3
 
+def is_inside_line_segment(x, y, x0, y0, x1, y1):
+    """Return True if the (x, y) lies inside the line segment defined by
+    (x0, y0) and (x1, y1)."""
+
+    # Create two vectors.
+    v0 = np.array([ x0-x, y0-y ]).reshape((2,1))
+    v1 = np.array([ x1-x, y1-y ]).reshape((2,1))
+
+    # Inner product.
+    prod = v0.transpose().dot(v1)
+
+    if ( prod <= 0 ):
+        return True
+    else:
+        return False
+
 def line_intersect(x0, y0, x1, y1, x2, y2, x3, y3, eps = 1e-6):
     """
     Calculates the interscetion point of two line segments (x0, y0) - (x1, y1) and
@@ -103,8 +119,14 @@ def line_intersect(x0, y0, x1, y1, x2, y2, x3, y3, eps = 1e-6):
     x = X[0, 0]; y = X[1, 0]
 
     # Test if the intersection falls into the line segments.
-    if ( ( ( x >= minX01 and x <= maxX01 ) or ( y >= minY01 and y <= maxY01 ) ) and \
-         ( ( x >= minX23 and x <= maxX23 ) or ( y >= minY23 and y <= maxY23 ) ) ):
+    # if ( ( ( x >= minX01 and x <= maxX01 ) or ( y >= minY01 and y <= maxY01 ) ) and \
+    #      ( ( x >= minX23 and x <= maxX23 ) or ( y >= minY23 and y <= maxY23 ) ) ):
+    #     flag = VALID_INTERSECTION
+    # else:
+    #     flag = FALL_OUT_INTERSECTION
+
+    if ( is_inside_line_segment( x, y, x0, y0, x1, y1 ) and \
+         is_inside_line_segment( x, y, x2, y2, x3, y3 ) ):
         flag = VALID_INTERSECTION
     else:
         flag = FALL_OUT_INTERSECTION

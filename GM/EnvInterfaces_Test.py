@@ -70,7 +70,7 @@ class TestGME_NP(unittest.TestCase):
 
         self.assertEqual( coor[0], self.gmenp.map.corners[2][GridMap.GridMap2D.I_X] - 0.5 * stepSizeX )
         self.assertEqual( coor[1], self.gmenp.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5 * stepSizeY )
-        self.assertEqual( totalVal, 103 )
+        self.assertEqual( totalVal, 97 )
 
         self.gmenp.render(3, flagSave=True)
 
@@ -103,7 +103,7 @@ class TestGME_NP_02(unittest.TestCase):
 
         self.gmenp = EnvInterfaces.GME_NP( name="TestGME_NP_02", gridMap=gridMap, workingDir=self.workingDir )
         # self.gmenp.map = gridMap
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         self.gmenp.reset()
 
     def test_step(self):
@@ -131,7 +131,7 @@ class TestGME_NP_02(unittest.TestCase):
 
         self.assertEqual( coor[0], self.gmenp.map.corners[2][GridMap.GridMap2D.I_X] - 0.5 * stepSizeX )
         self.assertEqual( coor[1], self.gmenp.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5 * stepSizeY )
-        self.assertEqual( totalVal, 101 )
+        self.assertEqual( totalVal, 99 )
 
         self.gmenp.render(3, flagSave=True)
 
