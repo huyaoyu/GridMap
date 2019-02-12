@@ -875,6 +875,9 @@ class GridMapEnv(object):
         self.visAgentRadius    = 1.0
         self.visPathArrowWidth = 1.0
 
+        self.visIsForcePause   = False
+        self.visForcePauseTime = 1
+
     def set_max_steps(self, m):
         assert( isinstance( m, (int, long) ) )
         assert( m >= 0 )
@@ -892,6 +895,20 @@ class GridMapEnv(object):
     
     def is_terminated(self):
         return self.isTerminated
+
+    def enable_force_pause(self, t):
+        """
+        t: Seconds for pause. Must be positive integer.
+        """
+
+        assert( isinstance( t, (int, long) ) )
+        assert( t > 0 )
+
+        self.visForcePauseTime = t
+        self.visIsForcePause   = True
+    
+    def disable_force_pause(self):
+        self.visIsForcePause = False
 
     def reset(self):
         """Reset the evironment."""
@@ -945,6 +962,8 @@ class GridMapEnv(object):
             self.visAgentRadius    = sizeH / 10.0
             self.visPathArrowWidth = sizeW / 10.0
 
+        return self.agentCurrentLoc
+
     def step(self, action):
         """
         Return values are next state, reward value, termination flag, and None.
@@ -978,6 +997,7 @@ class GridMapEnv(object):
         if ( self.maxSteps > 0 ):
             if ( self.nSteps >= self.maxSteps ):
                 self.isTerminated = True
+                termFlag = True
 
         if ( True == termFlag ):
             self.isTerminated = True
@@ -1044,13 +1064,18 @@ class GridMapEnv(object):
 
             plt.savefig( saveFn, dpi = 300, format = "png" )
 
-        if ( pause < 1 ):
-            plt.show()
-        elif ( pause >= 1 ):
-            print("Render %s for %f seconds." % (self.name, pause))
-            plt.show( block = False )
-            plt.pause( pause )
+        if ( True == self.visIsForcePause ):
+            plt.show( block=False )
+            plt.pause( self.visForcePauseTime )
             plt.close()
+        else:
+            if ( pause < 1 ):
+                plt.show()
+            elif ( pause >= 1 ):
+                print("Render %s for %f seconds." % (self.name, pause))
+                plt.show( block = False )
+                plt.pause( pause )
+                plt.close()
 
     def save(self, fn = None):
         """
@@ -1087,6 +1112,8 @@ class GridMapEnv(object):
             "maxSteps": self.maxSteps, \
             "visAgentRadius": self.visAgentRadius, \
             "visPathArrowWidth": self.visPathArrowWidth, \
+            "visIsForcePause": self.visIsForcePause, \
+            "visForcePauseTime": self.visForcePauseTime, \
             "agentCurrentLoc": [ self.agentCurrentLoc.x, self.agentCurrentLoc.y ], \
             "agentCurrentAct": [ self.agentCurrentAct.dx, self.agentCurrentAct.dy ], \
             "agentLocs": agentLocsList, \
@@ -1173,6 +1200,8 @@ class GridMapEnv(object):
         self.isTerminated = d["isTerminated"]
         self.nSteps = d["nSteps"]
         self.totalValue = d["totalValue"]
+        self.visIsForcePause = d["visIsForcePause"]
+        self.visForcePauseTime = d["visForcePauseTime"]
 
     def can_move_east(self, coor):
         """
@@ -1691,6 +1720,12 @@ class GridMapEnv(object):
                 coor.x = coorOri.x + coorDelta.dx
                 coor.y = coorOri.y + coorDelta.dy
                 break
+
+            # Check if coor is out of boundary.
+            if ( True == self.map.is_out_of_boundary( coor ) ):
+                s = "Out of boundary before evaluation. coorOri = %s, coorDelta - %s" % \
+                    (coorOri, coorDelta)
+                raise GridMapException( s )
 
             val = self.map.evaluate_coordinate( coor )
         else:

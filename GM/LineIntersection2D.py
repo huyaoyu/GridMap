@@ -103,10 +103,8 @@ def line_intersect(x0, y0, x1, y1, x2, y2, x3, y3, eps = 1e-6):
     x = X[0, 0]; y = X[1, 0]
 
     # Test if the intersection falls into the line segments.
-    if ( x >= minX01 and x <= maxX01 and \
-         x >= minX23 and x <= maxX23 and \
-         y >= minY01 and y <= maxY01 and \
-         y >= minY23 and y <= maxY23 ):
+    if ( ( ( x >= minX01 and x <= maxX01 ) or ( y >= minY01 and y <= maxY01 ) ) and \
+         ( ( x >= minX23 and x <= maxX23 ) or ( y >= minY23 and y <= maxY23 ) ) ):
         flag = VALID_INTERSECTION
     else:
         flag = FALL_OUT_INTERSECTION

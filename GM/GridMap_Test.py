@@ -2024,7 +2024,57 @@ class TestGridMapEnv(unittest.TestCase):
         # Show the temporary environment.
         print(tempGme)
 
+class TestGridMapEnv_RLTrain(unittest.TestCase):
+    def setUp(self):
+        self.rows = 11
+        self.cols = 11
+        gridMap = GridMap.GridMap2D(self.rows, self.cols, outOfBoundValue=-200)
+        gridMap.initialize()
+        # Overwrite blocks.
+        gridMap.set_starting_block((0, 0))
+        gridMap.set_ending_block((10, 10))
+        gridMap.add_obstacle(( 2,  8))
+        gridMap.add_obstacle(( 2,  7))
+        gridMap.add_obstacle(( 2,  6))
+        gridMap.add_obstacle(( 2,  5))
+        gridMap.add_obstacle(( 3,  5))
+        gridMap.add_obstacle(( 4,  5))
+        gridMap.add_obstacle(( 5,  5))
+        gridMap.add_obstacle(( 6,  5))
+        gridMap.add_obstacle(( 7,  5))
+        gridMap.add_obstacle(( 8,  5))
+        gridMap.add_obstacle(( 8,  4))
+        gridMap.add_obstacle(( 8,  3))
+        gridMap.add_obstacle(( 8,  2))
+
+        self.workingDir = "./WD_TestGridMapEnv_RLTrain"
+
+        self.gme = GridMap.GridMapEnv( gridMap = gridMap, workingDir = self.workingDir )
+        self.gme.reset()
+
+    def test_special_movement_01(self):
+        print("test_special_movement_01")
+
+        # Failed case from RL training.
+        # Coor = ( 4.33993915488, 1.57951883618 )
+        # CoorDelta = ( 0.277159383515, -1.70042657517 )
+        # Expected: Stop at the boundary.
+
+        coor = GridMap.BlockCoor( 4.33993915488, 1.57951883618 )
+        action = GridMap.BlockCoorDelta( 0.277159383515, -1.70042657517 )
+
+        # Overwite the internal state.
+        self.gme.agentCurrentLoc = copy.deepcopy( coor )
+
+        # Step.
+        # import ipdb; ipdb.set_trace()
+        coorNew, val, flagTerm, _ = self.gme.step( action )
+
+        print(coorNew)
+
+
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D )
     suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMapEnv ) )
+    suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMapEnv_RLTrain ) )
     unittest.TextTestRunner().run( suite )

@@ -103,6 +103,7 @@ class TestGME_NP_02(unittest.TestCase):
 
         self.gmenp = EnvInterfaces.GME_NP( name="TestGME_NP_02", gridMap=gridMap, workingDir=self.workingDir )
         # self.gmenp.map = gridMap
+        import ipdb; ipdb.set_trace()
         self.gmenp.reset()
 
     def test_step(self):
