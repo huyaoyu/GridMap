@@ -1030,6 +1030,12 @@ class GridMapEnv(object):
 
         ax.autoscale()
 
+        # Annotations.
+        plt.xlabel("x")
+        plt.ylabel("y")
+        titleStr = "%s:%s" % (self.name, self.map.name)
+        plt.title(titleStr)
+
         if ( True == flagSave ):
             if ( fn is None ):
                 saveFn = "%s/%s_%d-%ds_%dv" % (self.renderDir, self.name, self.nSteps, self.maxSteps, self.totalValue)

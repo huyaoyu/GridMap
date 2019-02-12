@@ -6,8 +6,8 @@ import numpy as np
 import GridMap
 
 class GME_NP(GridMap.GridMapEnv):
-    def __init__(self, name="GridMapEnv with NumPy", workingDir="./"):
-        super(GME_NP, self).__init__( name, None, workingDir )
+    def __init__(self, name="GridMapEnv with NumPy", gridMap = None, workingDir="./"):
+        super(GME_NP, self).__init__( name, gridMap, workingDir )
 
         # # Create map.
         # self.map = GridMap.GridMap2D( 10, 20 )

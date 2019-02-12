@@ -74,6 +74,67 @@ class TestGME_NP(unittest.TestCase):
 
         self.gmenp.render(3, flagSave=True)
 
+class TestGME_NP_02(unittest.TestCase):
+    def setUp(self):
+        self.rows = 11
+        self.cols = 11
+
+        gridMap = GridMap.GridMap2D(self.rows, self.cols, name="ZMap", outOfBoundValue=-200)
+        gridMap.initialize()
+        
+        # Overwrite blocks.
+        gridMap.set_starting_block((0, 0))
+        gridMap.set_ending_block((10, 10))
+        gridMap.add_obstacle(( 2,  8))
+        gridMap.add_obstacle(( 2,  7))
+        gridMap.add_obstacle(( 2,  6))
+        gridMap.add_obstacle(( 2,  5))
+        gridMap.add_obstacle(( 3,  5))
+        gridMap.add_obstacle(( 4,  5))
+        gridMap.add_obstacle(( 5,  5))
+        gridMap.add_obstacle(( 6,  5))
+        gridMap.add_obstacle(( 7,  5))
+        gridMap.add_obstacle(( 8,  5))
+        gridMap.add_obstacle(( 8,  4))
+        gridMap.add_obstacle(( 8,  3))
+        gridMap.add_obstacle(( 8,  2))
+
+        self.workingDir = "./WD_TestGME_NP_02"
+
+        self.gmenp = EnvInterfaces.GME_NP( name="TestGME_NP_02", gridMap=gridMap, workingDir=self.workingDir )
+        # self.gmenp.map = gridMap
+        self.gmenp.reset()
+
+    def test_step(self):
+        print("test_step")
+
+        stepSizeX = self.gmenp.map.get_step_size()[GridMap.GridMap2D.I_X]
+        stepSizeY = self.gmenp.map.get_step_size()[GridMap.GridMap2D.I_Y]
+
+        # Reset the environment.
+        self.gmenp.reset()
+
+        totalVal = 0
+
+        # Move east with 10 step.
+        action = np.array( [10 * stepSizeX, 0] )
+        coor, val, flagTerm, _ = self.gmenp.step( action )
+        self.assertFalse( flagTerm )
+        totalVal += val
+
+        # Move north with 10 steps.
+        action = np.array( [0, 10 * stepSizeY] )
+        coor, val, flagTerm, _ = self.gmenp.step( action )
+        self.assertTrue( flagTerm )
+        totalVal += val
+
+        self.assertEqual( coor[0], self.gmenp.map.corners[2][GridMap.GridMap2D.I_X] - 0.5 * stepSizeX )
+        self.assertEqual( coor[1], self.gmenp.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5 * stepSizeY )
+        self.assertEqual( totalVal, 101 )
+
+        self.gmenp.render(3, flagSave=True)
+
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase( TestGME_NP )
+    suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGME_NP_02 ) )
     unittest.TextTestRunner().run( suite )
