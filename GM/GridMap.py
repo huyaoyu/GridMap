@@ -16,7 +16,7 @@ def two_point_distance(x0, y0, x1, y1):
 
     return math.sqrt( dx**2 + dy**2 )
 
-def round_if_needed(x, eps = 1e-6):
+def round_if_needed(x, eps = 1e-4):
     """Rount to the nearest integer if x falls into the eps around a integer."""
     
     if ( isinstance( x, (int, long) ) ):
@@ -25,15 +25,15 @@ def round_if_needed(x, eps = 1e-6):
     if ( x is None ):
         return x
 
-    temp = np.ceil(x)
+    temp = float(np.ceil(x))
     if ( temp - x < eps ):
         return temp
 
-    temp = np.floor(x)
+    temp = float(np.floor(x))
     if ( x - temp < eps ):
         return temp
 
-    return x
+    return float(x)
 
 class GridMapException(Exception):
     def __init__(self, msg):
@@ -165,7 +165,7 @@ class Block(object):
         return self.corners[idx]
 
 class NormalBlock(Block):
-    def __init__(self, x = 0, y = 0, h = 1, w = 1, value = -1):
+    def __init__(self, x = 0, y = 0, h = 1, w = 1, value = -0.1):
         super(NormalBlock, self).__init__(x, y, h, w)
 
         # Member variables defined in the super classes.
@@ -174,7 +174,7 @@ class NormalBlock(Block):
         self.value = value
     
 class ObstacleBlock(Block):
-    def __init__(self, x = 0, y = 0, h = 1, w = 1, value = -100):
+    def __init__(self, x = 0, y = 0, h = 1, w = 1, value = -10):
         super(ObstacleBlock, self).__init__(x, y, h, w)
 
         # Member variables defined in the super classes.
@@ -245,7 +245,7 @@ class GridMap2D(object):
     I_X = 0
     I_Y = 1
 
-    def __init__(self, rows, cols, origin = [0, 0], stepSize = [1, 1], name = "Default Name", outOfBoundValue = -100):
+    def __init__(self, rows, cols, origin = [0, 0], stepSize = [1, 1], name = "Default Name", outOfBoundValue = -10):
         assert( isinstance(rows, (int, long)) )
         assert( isinstance(cols, (int, long)) )
         assert( isinstance(origin[0], (int, long)) )
@@ -857,6 +857,9 @@ origin = [%d, %d], size = [%d, %d].""" \
         (3) Ture if coor lies on a vertical principle line or is a corner.
         (4) A BlockIndex object associated with coor.
         """
+        
+        if ( coor.x is None or coor.y is None ):
+            return False, False, False, None
 
         # Get the index of (x, y).
         index = self.get_index_by_coordinates(coor)
@@ -896,6 +899,8 @@ class GridMapEnv(object):
 
         self.visIsForcePause   = False
         self.visForcePauseTime = 1
+
+        self.tryMoveMaxCount   = 0 # 0 for disabled.
 
     def set_max_steps(self, m):
         assert( isinstance( m, (int, long) ) )
@@ -980,6 +985,9 @@ class GridMapEnv(object):
         else:
             self.visAgentRadius    = sizeH / 10.0
             self.visPathArrowWidth = sizeW / 10.0
+
+        # Monitor.
+        self.tryMoveMaxCount = max( self.map.rows, self.map.cols ) * 2
 
         return self.agentCurrentLoc
 
@@ -1566,6 +1574,10 @@ class GridMapEnv(object):
         coor = copy.deepcopy(coorOri)
         val  = 0 # The block value.
 
+        # Regularize input coor.
+        coor.x = round_if_needed(coor.x)
+        coor.y = round_if_needed(coor.y)
+
         # dx and dy.
         delta = coorDelta.convert_to_direction_delta()
 
@@ -1575,9 +1587,34 @@ class GridMapEnv(object):
         coorH = BlockCoor(0, 0)
         coorV = BlockCoor(0, 0)
 
+        # Status monitor.
+        tryCount     = 0
+        tryCoor      = []
+        tryCoorDelta = []
+
         # Try to move.
         if ( True == self.can_move( coor.x, coor.y, delta.dx, delta.dy ) ):
+            coorPre = copy.deepcopy( coor )
             while ( True ):
+                # Status monitor.
+                tryCoor.append( copy.deepcopy(coor) )
+                tryCoorDelta.append( copy.deepcopy(delta) )
+
+                if ( self.tryMoveMaxCount > 0 and tryCount >= self.tryMoveMaxCount ):
+                    print("coorOri = %s" % (coorOri) )
+                    print("coorDelta = %s" % (coorDelta) )
+
+                    n = len(tryCoor)
+
+                    for i in range(n):
+                        print("%s, %s" % (tryCoor[i], tryCoorDelta[i]))
+                    
+                    raise GridMapException("try_move() reaches its maximum allowed moves.")
+                else:
+                    tryCount += 1
+                
+                # Done with status monitor.
+
                 # Get the index of coor.
                 index = self.map.get_index_by_coordinates( coor )
 
@@ -1632,6 +1669,65 @@ class GridMapEnv(object):
                     distH = two_point_distance( coor.x, coor.y, xH, yH )
                 else:
                     distH = 0
+                    
+                # Auxiliary check.
+                auxV = self.map.is_corner_or_principle_line( BlockCoor( xV, yV ) )
+                auxH = self.map.is_corner_or_principle_line( BlockCoor( xH, yH ) )
+
+                if ( LineIntersection2D.VALID_INTERSECTION == flagV and \
+                     True == auxV[0] and \
+                     LineIntersection2D.VALID_INTERSECTION == flagH and \
+                     True == auxH[0] ):
+                    # Same distance.
+                    # Choose a pair of valid coordinates that are not None.
+                    if ( xV is not None and yV is not None ):
+                        xi = xV; yi = yV
+                    elif ( xH is not None and yH is not None ):
+                        xi = xH; yi = yH
+                    else:
+                        raise GridMapException( "Vertical and horizontal intersections must not both be invalid." )
+
+                    # Check if (xi, yi) is on the boundary.
+                    if ( True == self.map.is_out_of_or_on_boundary( BlockCoor( xi, yi ) ) ):
+                        # Stop here.
+                        coorPre.x, coorPre.y = coor.x, coor.y
+                        coor.x, coor.y = xi, yi
+                        break
+                    
+                    # Get the index at (xi, yi). 
+                    interIdxH = self.map.get_index_by_coordinates( BlockCoor(xi, yi) )
+
+                    # Since we are at a corner point, we simply checkout all four neighboring blocks.
+                    flagCornerFoundObstacle = False
+
+                    if ( False == flagCornerFoundObstacle and \
+                            True == self.map.is_obstacle_block( interIdxH ) ):
+                        flagCornerFoundObstacle = True
+                    
+                    interIdxH.c -= 1
+                    if ( False == flagCornerFoundObstacle and \
+                            True == self.map.is_obstacle_block( interIdxH ) ):
+                        flagCornerFoundObstacle = True
+                    
+                    interIdxH.r -= 1
+                    if ( False == flagCornerFoundObstacle and \
+                            True == self.map.is_obstacle_block( interIdxH ) ):
+                        flagCornerFoundObstacle = True
+                    
+                    interIdxH.c += 1
+                    if ( False == flagCornerFoundObstacle and \
+                            True == self.map.is_obstacle_block( interIdxH ) ):
+                        flagCornerFoundObstacle = True
+                    
+                    if ( True == flagCornerFoundObstacle ):
+                        # Stop here.
+                        coorPre.x, coorPre.y = coor.x, coor.y
+                        coor.x, coor.y = xi, yi
+                        break
+                    
+                    coorPre.x, coorPre.y = coor.x, coor.y
+                    coor.x, coor.y = xi, yi
+                    continue
 
                 if ( LineIntersection2D.VALID_INTERSECTION == flagV ):
                     if ( LineIntersection2D.VALID_INTERSECTION != flagH or \
@@ -1639,6 +1735,7 @@ class GridMapEnv(object):
                         # Check if (xV, yV) is on the boundary.
                         if ( True == self.map.is_out_of_or_on_boundary( BlockCoor( xV, yV ) ) ):
                             # Stop here.
+                            coorPre.x, coorPre.y = coor.x, coor.y
                             coor.x, coor.y = xV, yV
                             break
                         
@@ -1651,6 +1748,7 @@ class GridMapEnv(object):
 
                         if ( True == self.map.is_obstacle_block( interIdxV ) ):
                             # Stop here.
+                            coorPre.x, coorPre.y = coor.x, coor.y
                             coor.x, coor.y = xV, yV
                             break
 
@@ -1661,96 +1759,71 @@ class GridMapEnv(object):
 
                         if ( True == self.map.is_obstacle_block( interIdxV ) ):
                             # Stop here.
+                            coorPre.x, coorPre.y = coor.x, coor.y
                             coor.x, coor.y = xV, yV
                             break
                         
+                        coorPre.x, coorPre.y = coor.x, coor.y
                         coor.x, coor.y = xV, yV
                         continue
                         
                 if ( LineIntersection2D.VALID_INTERSECTION == flagH ):
-                    if ( LineIntersection2D.VALID_INTERSECTION == flagV and \
-                         distV == distH ):
-                        # Same distance.
-                        # Check if (xH, yH) is on the boundary.
-                        if ( True == self.map.is_out_of_or_on_boundary( BlockCoor( xH, yH ) ) ):
-                            # Stop here.
-                            coor.x, coor.y = xH, yH
-                            break
-                        
-                        # Get the index at (xH, yH). 
-                        interIdxH = self.map.get_index_by_coordinates( BlockCoor(xH, yH) )
+                    # Not same distance.
+                    # Check if (xH, yH) is on the boundary.
+                    if ( True == self.map.is_out_of_or_on_boundary( BlockCoor( xH, yH ) ) ):
+                        # Stop here.
+                        coorPre.x, coorPre.y = coor.x, coor.y
+                        coor.x, coor.y = xH, yH
+                        break
+                    
+                    # Get the index at (xH, yH).
+                    interIdxH = self.map.get_index_by_coordinates( BlockCoor(xH, yH) )
 
-                        # Since we are at a corner point, we simply checkout all four neighboring blocks.
-                        flagCornerFoundObstacle = False
-
-                        if ( False == flagCornerFoundObstacle and \
-                             True == self.map.is_obstacle_block( interIdxH ) ):
-                            flagCornerFoundObstacle = True
-                        
-                        interIdxH.c -= 1
-                        if ( False == flagCornerFoundObstacle and \
-                             True == self.map.is_obstacle_block( interIdxH ) ):
-                            flagCornerFoundObstacle = True
-                        
+                    if ( delta.dy < 0 ):
+                        # Downwards direction.
                         interIdxH.r -= 1
-                        if ( False == flagCornerFoundObstacle and \
-                             True == self.map.is_obstacle_block( interIdxH ) ):
-                            flagCornerFoundObstacle = True
-                        
-                        interIdxH.c += 1
-                        if ( False == flagCornerFoundObstacle and \
-                             True == self.map.is_obstacle_block( interIdxH ) ):
-                            flagCornerFoundObstacle = True
-                        
-                        if ( True == flagCornerFoundObstacle ):
-                            # Stop here.
-                            coor.x, coor.y = xH, yH
-                            break
-                        
-                        coor.x, coor.y = xH, yH
-                        continue
-                    else:
-                        # Not same distance.
-                        # Check if (xH, yH) is on the boundary.
-                        if ( True == self.map.is_out_of_or_on_boundary( BlockCoor( xH, yH ) ) ):
-                            # Stop here.
-                            coor.x, coor.y = xH, yH
-                            break
-                        
-                        # Get the index at (xH, yH).
-                        interIdxH = self.map.get_index_by_coordinates( BlockCoor(xH, yH) )
 
-                        if ( delta.dy < 0 ):
-                            # Downwards direction.
-                            interIdxH.r -= 1
-
-                        if ( True == self.map.is_obstacle_block( interIdxH ) ):
-                            # Stop here.
-                            coor.x, coor.y = xH, yH
-                            break
-                        
-                        # Check if we are travelling along a vertical line.
-                        if ( loc[2] == True and delta.dx == 0 ):
-                            interIdxH.c -= 1
-                        
-                        if ( True == self.map.is_obstacle_block( interIdxH ) ):
-                            # Stop here.
-                            coor.x, coor.y = xH, yH
-                            break
-                        
+                    if ( True == self.map.is_obstacle_block( interIdxH ) ):
+                        # Stop here.
+                        coorPre.x, coorPre.y = coor.x, coor.y
                         coor.x, coor.y = xH, yH
-                        continue
+                        break
+                    
+                    # Check if we are travelling along a vertical line.
+                    if ( loc[2] == True and delta.dx == 0 ):
+                        interIdxH.c -= 1
+                    
+                    if ( True == self.map.is_obstacle_block( interIdxH ) ):
+                        # Stop here.
+                        coorPre.x, coorPre.y = coor.x, coor.y
+                        coor.x, coor.y = xH, yH
+                        break
+                    
+                    coorPre.x, coorPre.y = coor.x, coor.y
+                    coor.x, coor.y = xH, yH
+                    continue
                 
                 # No valid intersectons. Stop here.
+                coorPre.x, coorPre.y = coor.x, coor.y
+
                 coor.x = coorOri.x + coorDelta.dx
                 coor.y = coorOri.y + coorDelta.dy
+
+                # coor.x = round_if_needed(coor.x)
+                # coor.y = round_if_needed(coor.y)
+
                 break
 
             # Check if coor is out of boundary.
             if ( True == self.map.is_out_of_boundary( coor ) ):
                 s = "Out of boundary before evaluation. coorOri = %s, coorDelta - %s" % \
                     (coorOri, coorDelta)
-                raise GridMapException( s )
+                print(s)
+                # raise GridMapException( s )
+
+                # Roll back to the previous valid intersection.
+                coor.x, coor.y = coorPre.x, coorPre.y
+                print( "Rolled back to previous coordinate (%f, %f)" % ( coor.x, coor.y ) )
 
             val = self.map.evaluate_coordinate( coor )
         else:

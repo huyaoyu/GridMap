@@ -2092,6 +2092,46 @@ class TestGridMapEnv_RLTrain(unittest.TestCase):
 
         print(coorNew)
 
+    def test_special_movement_03(self):
+        print("test_special_movement_03")
+
+        # Failed case from RL training.
+        # coor(9.11443961519, 7.76228759008)
+        # CoorDelta(2.02919137172, -0.276896302745)
+        # Issue: Never stop.
+
+        coor = GridMap.BlockCoor( 9.11443961519, 7.76228759008 )
+        action = GridMap.BlockCoorDelta( 2.02919137172, -0.276896302745 )
+
+        # Overwite the internal state.
+        self.gme.agentCurrentLoc = copy.deepcopy( coor )
+
+        # Step.
+        # import ipdb; ipdb.set_trace()
+        coorNew, val, flagTerm, _ = self.gme.step( action )
+
+        print(coorNew)
+
+    def test_special_movement_04(self):
+        print("test_special_movement_04")
+
+        # Failed case from RL training.
+        # coor(11.0, 10.9998531342)
+        # CoorDelta(-0.000502182123979, 0.736209217276)
+        # Issue: Evaluation out of boundary point exception in try_move().
+
+        coor = GridMap.BlockCoor( 11.0, 10.9998531342 )
+        action = GridMap.BlockCoorDelta( -0.000502182123979, 0.736209217276 )
+
+        # Overwite the internal state.
+        self.gme.agentCurrentLoc = copy.deepcopy( coor )
+
+        # Step.
+        # import ipdb; ipdb.set_trace()
+        coorNew, val, flagTerm, _ = self.gme.step( action )
+
+        print(coorNew)
+
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D )
     suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMapEnv ) )
