@@ -263,6 +263,11 @@ class GridMap2D(object):
         self.stepSize  = copy.deepcopy(stepSize) # Step sizes in x and y direction. Note the order of x and y.
         self.outOfBoundValue = outOfBoundValue
 
+        self.valueStartingBlock = 0
+        self.valueEndingBlock   = 100
+        self.valueNormalBlock   = -0.1
+        self.valueObstacleBlock = -10
+
         self.corners   = [] # A 4x2 2D list. Coordinates.
         self.blockRows = [] # A list contains rows of blocks.
 
@@ -274,7 +279,27 @@ class GridMap2D(object):
 
         self.obstacleIndices = []
 
-    def initialize(self, value = -1):
+        # Potential value.
+        self.havePotentialValue    = False
+        self.potentialValuePerStep = 0.1
+        self.potentialValueMax     = 0
+
+    def set_value_normal_block(self, val):
+        self.valueNormalBlock = val
+    
+    def set_value_starting_block(self, val):
+        self.valueStartingBlock = val
+
+    def set_value_ending_block(self, val):
+        self.valueEndingBlock = val
+    
+    def set_value_obstacle_block(self, val):
+        self.valueObstacleBlock = val
+    
+    def set_value_out_of_boundary(self, val):
+        self.outOfBoundValue = val
+
+    def initialize(self):
         if ( True == self.isInitialized ):
             raise GridMapException("Map already initialized.")
 
@@ -291,7 +316,7 @@ class GridMap2D(object):
         for r in rs:
             temp = []
             for c in cs:
-                b = NormalBlock( c*w, r*h, h, w, value )
+                b = NormalBlock( c*w, r*h, h, w, self.valueNormalBlock )
                 temp.append(b)
             
             self.blockRows.append(temp)
@@ -316,6 +341,10 @@ class GridMap2D(object):
             "origin": self.origin, \
             "stepSize": self.stepSize, \
             "outOfBoundValue": self.outOfBoundValue, \
+            "valueNormalBlock": self.valueNormalBlock, \
+            "valueStartingBlock": self.valueStartingBlock, \
+            "valueEndingBlock": self.valueEndingBlock, \
+            "valueObstacleBlock": self.valueObstacleBlock, \
             "haveStartingBlock": self.haveStartingBlock, \
             "startingBlockIdx": [ self.startingBlockIdx.r, self.startingBlockIdx.c ], \
             "haveEndingBlock": self.haveEndingBlock, \
@@ -350,9 +379,13 @@ class GridMap2D(object):
         self.name = d["name"]
         self.rows = d["rows"]
         self.cols = d["cols"]
-        self.origin = d["origin"]
-        self.stepSize = d["stepSize"]
-        self.outOfBoundValue = d["outOfBoundValue"]
+        self.origin             = d["origin"]
+        self.stepSize           = d["stepSize"]
+        self.outOfBoundValue    = d["outOfBoundValue"]
+        self.valueNormalBlock   = d["valueNormalBlock"]
+        self.valueStartingBlock = d["valueStartingBlock"]
+        self.valueEndingBlock   = d["valueEndingBlock"]
+        self.valueObstacleBlock = d["valueObstacleBlock"]
 
         self.initialized = False
         self.initialize()
@@ -439,53 +472,120 @@ class GridMap2D(object):
         
         return False
 
-    def set_starting_block_s(self, r, c):
+    def enable_potential_value(self, valMax = None, valPerStep = None):
+        if ( valMax is not None ):
+            self.potentialValueMax     = valMax
+            self.potentialValuePerStep = valPerStep
+        
+        self.havePotentialValue = True
+    
+    def disable_potential_value(self):
+        self.havePotentialValue = False
+
+    def get_potential_value(self, idxGoal, idx):
+        """Return the potential value based on the distance between the indices of idxGaol and idx."""
+
+        # Calculate the index distance.
+        dr = idxGoal.r - idx.r
+        dc = idxGoal.c - idx.c
+
+        d = math.sqrt( dr**2 + dc**2 )
+
+        return d * self.potentialValuePerStep
+
+    def update_potential_value(self):
+        if ( False == self.havePotentialValue ):
+            raise GridMapException("Potential value not enabled.")
+
+        # Loop over all the blocks.
+        idx = BlockIndex(0, 0)
+        for br in self.blockRows:
+            idx.c = 0
+            for b in br:
+                if ( self.is_normal_block( idx ) ):
+                    v = self.potentialValueMax - \
+                        self.get_potential_value( self.endingBlockIdx, idx )
+                    
+                    self.get_block( idx ).value += v
+
+                idx.c += 1
+            
+            idx.r += 1
+
+    def set_starting_block_s(self, r, c, value = None):
         assert( isinstance(r, (int, long)) )
         assert( isinstance(c, (int, long)) )
         
         if ( True == self.haveStartingBlock ):
+            # Get the coordinate of the original starting block.
+            cl = self.get_block( self.startingBlockIdx ).corners[0]
+
             # Overwrite the old staring point with a NormalBlock.
-            self.overwrite_block( self.startingBlockIdx.r, self.startingBlockIdx.c, NormalBlock() )
+            self.overwrite_block( self.startingBlockIdx.r, self.startingBlockIdx.c, \
+                NormalBlock( cl[GridMap2D.I_X], cl[GridMap2D.I_Y], self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueNormalBlock ) )
         
         # Overwrite a block. Make it to be a starting block.
-        self.overwrite_block( r, c, StartingBlock() )
+
+        if ( value is not None ):
+            self.valueStartingBlock = value
+
+        # Coordinate of the new starting block.
+        coor = self.convert_to_coordinates( BlockIndex( r, c ) )
+
+        self.overwrite_block( r, c, \
+            StartingBlock( coor.x, coor.y, self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueStartingBlock ) )
         self.startingBlockIdx.r = r
         self.startingBlockIdx.c = c
 
         self.haveStartingBlock = True
 
-    def set_starting_block(self, index):
+    def set_starting_block(self, index, value = None):
         if ( isinstance( index, BlockIndex ) ):
-            self.set_starting_block_s( index.r, index.c )
+            self.set_starting_block_s( index.r, index.c, value )
         elif ( isinstance( index, (list, tuple) ) ):
-            self.set_starting_block_s( index[GridMap2D.I_R], index[GridMap2D.I_C] )
+            self.set_starting_block_s( index[GridMap2D.I_R], index[GridMap2D.I_C], value )
         else:
             raise TypeError("index should be an object of BlockIndex or a list or a tuple.")
 
-    def set_ending_block_s(self, r, c):
+    def set_ending_block_s(self, r, c, value=None):
         assert( isinstance(r, (int, long)) )
         assert( isinstance(c, (int, long)) )
         
         if ( True == self.haveEndingBlock ):
+            # Get the coordinate of the original starting block.
+            cl = self.get_block( self.endingBlockIdx ).corners[0]
+
             # Overwrite the old staring point with a NormalBlock.
-            self.overwrite_block( self.endingBlockIdx.r, self.endingBlockIdx.c, NormalBlock() )
+            self.overwrite_block( self.endingBlockIdx.r, self.endingBlockIdx.c, \
+                NormalBlock( cl[GridMap2D.I_X], cl[GridMap2D.I_Y], self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueNormalBlock ) )
         
         # Overwrite a block. Make it to be a starting block.
-        self.overwrite_block( r, c, EndingBlock() )
+
+        if ( value is not None ):
+            self.valueEndingBlock = value
+
+        # Coordinate of the new ending block.
+        coor = self.convert_to_coordinates( BlockIndex( r, c ) )
+
+        self.overwrite_block( r, c, \
+            EndingBlock(coor.x, coor.y, self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueEndingBlock) )
         self.endingBlockIdx.r = r
         self.endingBlockIdx.c = c
 
         self.haveEndingBlock = True
+
+        if ( True == self.havePotentialValue ):
+            self.update_potential_value()
     
-    def set_ending_block(self, index):
+    def set_ending_block(self, index, value=None):
         if ( isinstance( index, BlockIndex ) ):
-            self.set_ending_block_s( index.r, index.c )
+            self.set_ending_block_s( index.r, index.c, value )
         elif ( isinstance( index, (list, tuple) ) ):
-            self.set_ending_block_s( index[GridMap2D.I_R], index[GridMap2D.I_C] )
+            self.set_ending_block_s( index[GridMap2D.I_R], index[GridMap2D.I_C], value )
         else:
             raise TypeError("index should be an object of BlockIndex or a list or a tuple.")
 
-    def add_obstacle_s(self, r, c):
+    def add_obstacle_s(self, r, c, value=None):
         assert( isinstance(r, (int, long)) )
         assert( isinstance(c, (int, long)) )
 
@@ -501,16 +601,23 @@ class GridMap2D(object):
         if ( isinstance( self.get_block((r, c)), ObstacleBlock ) ):
             return
 
-        self.overwrite_block( r, c, ObstacleBlock() )
+        if ( value is not None ):
+            self.valueObstacleBlock = value
+
+        # Coordinate of the new ending block.
+        coor = self.convert_to_coordinates( BlockIndex( r, c ) )
+
+        self.overwrite_block( r, c, \
+            ObstacleBlock(coor.x, coor.y, self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueObstacleBlock ) )
 
         # Add the indices into self.obstacleIndices 2D list.
         add_element_to_2D_list( [r, c], self.obstacleIndices )
 
-    def add_obstacle(self, index):
+    def add_obstacle(self, index, value=None):
         if ( isinstance( index, BlockIndex ) ):
-            self.add_obstacle_s( index.r, index.c )
+            self.add_obstacle_s( index.r, index.c, value )
         elif ( isinstance( index, (list, tuple) ) ):
-            self.add_obstacle_s( index[GridMap2D.I_R], index[GridMap2D.I_C] )
+            self.add_obstacle_s( index[GridMap2D.I_R], index[GridMap2D.I_C], value )
         else:
             raise TypeError("index should be an object of BlockIndex or a list or a tuple.")
 
@@ -535,7 +642,8 @@ class GridMap2D(object):
 
     def get_string_starting_block(self):
         if ( True == self.haveStartingBlock ):
-            s = "starting block at [%d, %d]." % ( self.startingBlockIdx.r, self.startingBlockIdx.c )
+            s = "starting block at [%d, %d], value = %f." % \
+                ( self.startingBlockIdx.r, self.startingBlockIdx.c, self.valueStartingBlock )
         else:
             s = "No starting block."
 
@@ -543,7 +651,8 @@ class GridMap2D(object):
 
     def get_string_ending_block(self):
         if ( True == self.haveEndingBlock ):
-            s = "ending block at [%d, %d]." % ( self.endingBlockIdx.r, self.endingBlockIdx.c )
+            s = "ending block at [%d, %d], value = %f." % \
+                ( self.endingBlockIdx.r, self.endingBlockIdx.c, self.valueEndingBlock )
         else:
             s = "No ending block."
 
@@ -561,6 +670,8 @@ class GridMap2D(object):
         for obs in self.obstacleIndices:
             s += "[%d, %d]\n" % (obs[GridMap2D.I_R], obs[GridMap2D.I_C])
         
+        s += "Value of the last added obstacle block is %f." % (self.valueObstacleBlock)
+
         return s
 
     def get_string_corners(self):
@@ -579,6 +690,9 @@ class GridMap2D(object):
 origin = [%d, %d], size = [%d, %d].""" \
 % (self.rows, self.cols, self.origin[GridMap2D.I_X], self.origin[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], self.stepSize[GridMap2D.I_Y])
 
+        # Normal block.
+        strNormalBlock = "Value of the normal block is %f." % (self.valueNormalBlock)
+
         # Get the string for staring point.
         strStartingBlock = self.get_string_starting_block()
 
@@ -591,8 +705,8 @@ origin = [%d, %d], size = [%d, %d].""" \
         # Get the string for the corners.
         strCorners = self.get_string_corners()
 
-        s = "%s\n%s\n%s\n%s\n%s\n%s\n" \
-            % ( title, strDimensions, strStartingBlock, strEndingBlock, strObstacles, strCorners )
+        s = "%s\n%s\n%s\n%s\n%s\n%s\n%s\n" \
+            % ( title, strDimensions, strNormalBlock, strStartingBlock, strEndingBlock, strObstacles, strCorners )
 
         return s
 
@@ -902,6 +1016,9 @@ class GridMapEnv(object):
 
         self.tryMoveMaxCount   = 0 # 0 for disabled.
 
+        self.nondimensionalStep = False
+        self.actStepSize = [0, 0] # Two element list. dx and dy.
+
     def set_max_steps(self, m):
         assert( isinstance( m, (int, long) ) )
         assert( m >= 0 )
@@ -933,6 +1050,18 @@ class GridMapEnv(object):
     
     def disable_force_pause(self):
         self.visIsForcePause = False
+
+    def enable_nondimensional_step(self):
+        if ( self.map is None ):
+            raise GridMapException("GridMapEnv could not enable non-dimensional step. self.map is None.")
+        
+        self.actStepSize[0] = self.map.corners[1][GridMap2D.I_X] - self.map.corners[0][GridMap2D.I_X]
+        self.actStepSize[1] = self.map.corners[3][GridMap2D.I_Y] - self.map.corners[0][GridMap2D.I_Y]
+
+        self.nondimensionalStep = True
+
+    def diable_nondimensional_step(self):
+        self.nondimensionalStep = False
 
     def reset(self):
         """Reset the evironment."""
@@ -969,6 +1098,11 @@ class GridMapEnv(object):
         self.agentLocs = [ copy.deepcopy( self.agentStartingLoc ) ]
         self.agentActs = [ ]
 
+        # Non-dimensional step size.
+        if ( True == self.nondimensionalStep ):
+            self.actStepSize[0] = self.map.corners[1][GridMap2D.I_X] - self.map.corners[0][GridMap2D.I_X]
+            self.actStepSize[1] = self.map.corners[3][GridMap2D.I_Y] - self.map.corners[0][GridMap2D.I_Y]
+
         # Clear step counter.
         self.nSteps = 0
 
@@ -1003,6 +1137,11 @@ class GridMapEnv(object):
             raise GridMapException("Episode already terminated.")
         
         self.agentCurrentAct = copy.deepcopy( action )
+
+        # Non-dimensional step.
+        if ( True == self.nondimensionalStep ):
+            self.agentCurrentAct.dx *= self.actStepSize[GridMap2D.I_X]
+            self.agentCurrentAct.dy *= self.actStepSize[GridMap2D.I_Y]
 
         # Move.
         newLoc, value, termFlag = self.try_move( self.agentCurrentLoc, self.agentCurrentAct )
@@ -1071,6 +1210,9 @@ class GridMapEnv(object):
                 loc0 = self.agentLocs[i]
                 loc1 = self.agentLocs[i+1]
 
+                if ( loc0.x == loc1.x and loc0.y == loc1.y ):
+                    continue
+
                 plt.arrow( loc0.x, loc0.y, loc1.x - loc0.x, loc1.y - loc0.y, \
                     width=self.visPathArrowWidth, \
                     alpha=0.5, color='k', length_includes_head=True )
@@ -1137,6 +1279,8 @@ class GridMapEnv(object):
             "name": self.name, \
             "mapFn": "Map.json", \
             "maxSteps": self.maxSteps, \
+            "nondimensionalStep": self.nondimensionalStep, \
+            "actStepSize": self.actStepSize, \
             "visAgentRadius": self.visAgentRadius, \
             "visPathArrowWidth": self.visPathArrowWidth, \
             "visIsForcePause": self.visIsForcePause, \
@@ -1194,6 +1338,8 @@ class GridMapEnv(object):
         self.name = d["name"]
         self.renderDir = "%s/%s" % ( self.workingDir, "Render" )
         self.maxSteps = d["maxSteps"]
+        self.nondimensionalSetp = d["nondimensionalStep"]
+        self.actStepSize = d["actStepSize"]
 
         # Create a new map.
         m = GridMap2D( rows = 1, cols = 1 ) # A temporay map.

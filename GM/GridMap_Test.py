@@ -11,6 +11,12 @@ class TestGridMap2D(unittest.TestCase):
         self.rows = 10
         self.cols = 20
         self.map = GridMap.GridMap2D(self.rows, self.cols, outOfBoundValue=-200)
+
+        self.map.set_value_normal_block(-1)
+        self.map.set_value_starting_block(0)
+        self.map.set_value_ending_block(100)
+        self.map.set_value_obstacle_block(-100)
+
         self.map.initialize()
 
         # Overwrite blocks.
@@ -581,11 +587,63 @@ class TestGridMap2D(unittest.TestCase):
         tempMap.read_JSON( "./WD_TestGridMap2D/Map.json" )
         print(tempMap)
 
+class TestGridMap2D_WithPotential(unittest.TestCase):
+    def setUp(self):
+        self.rows = 10
+        self.cols = 20
+        self.map = GridMap.GridMap2D(self.rows, self.cols, outOfBoundValue=-200)
+
+        self.map.set_value_normal_block(-1)
+        self.map.set_value_starting_block(0)
+        self.map.set_value_ending_block(100)
+        self.map.set_value_obstacle_block(-100)
+
+        self.map.initialize()
+
+        # Potential value settings.
+        self.map.enable_potential_value( valMax=10, valPerStep=1 )
+
+        # Overwrite blocks.
+        self.map.set_starting_block((0, 0))
+        self.map.set_ending_block((9, 19))
+        self.map.add_obstacle((0, 10))
+        self.map.add_obstacle((4, 10))
+        self.map.add_obstacle((5,  0))
+        self.map.add_obstacle((5,  9))
+        self.map.add_obstacle((5, 10))
+        self.map.add_obstacle((5, 11))
+        self.map.add_obstacle((5, 19))
+        self.map.add_obstacle((6, 10))
+        self.map.add_obstacle((9, 10))
+
+        # # Describe the map.
+        # print(gm2d)
+
+    def test_block_value_with_potential(self):
+        print("test_block_value_with_potential")
+
+        idx = GridMap.BlockIndex(8, 19)
+        v = self.map.get_block(idx).value
+
+        self.assertEqual( v, 8 )
+
+        idx.r = 9
+        idx.c = 18
+        v = self.map.get_block(idx).value
+
+        self.assertEqual( v, 8 )
+
 class TestGridMapEnv(unittest.TestCase):
     def setUp(self):
         self.rows = 10
         self.cols = 20
         gridMap = GridMap.GridMap2D(self.rows, self.cols, outOfBoundValue=-200)
+
+        gridMap.set_value_normal_block(-1)
+        gridMap.set_value_starting_block(0)
+        gridMap.set_value_ending_block(100)
+        gridMap.set_value_obstacle_block(-100)
+
         gridMap.initialize()
         # Overwrite blocks.
         gridMap.set_starting_block((0, 0))
@@ -2029,6 +2087,12 @@ class TestGridMapEnv_RLTrain(unittest.TestCase):
         self.rows = 11
         self.cols = 11
         gridMap = GridMap.GridMap2D(self.rows, self.cols, outOfBoundValue=-200)
+
+        gridMap.set_value_normal_block(-1)
+        gridMap.set_value_starting_block(0)
+        gridMap.set_value_ending_block(100)
+        gridMap.set_value_obstacle_block(-100)
+
         gridMap.initialize()
         # Overwrite blocks.
         gridMap.set_starting_block((0, 0))
@@ -2134,6 +2198,7 @@ class TestGridMapEnv_RLTrain(unittest.TestCase):
 
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D )
+    suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D_WithPotential ) )
     suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMapEnv ) )
     suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMapEnv_RLTrain ) )
     unittest.TextTestRunner().run( suite )
