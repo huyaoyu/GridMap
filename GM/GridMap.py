@@ -1017,6 +1017,7 @@ class GridMapEnv(object):
         self.tryMoveMaxCount   = 0 # 0 for disabled.
 
         self.nondimensionalStep = False
+        self.nondimensionalStepRatio = 0.25 # For non-dimensional step, the maximum size of individual step compared to the length of the map.
         self.actStepSize = [0, 0] # Two element list. dx and dy.
 
     def set_max_steps(self, m):
@@ -1055,8 +1056,10 @@ class GridMapEnv(object):
         if ( self.map is None ):
             raise GridMapException("GridMapEnv could not enable non-dimensional step. self.map is None.")
         
-        self.actStepSize[0] = self.map.corners[1][GridMap2D.I_X] - self.map.corners[0][GridMap2D.I_X]
-        self.actStepSize[1] = self.map.corners[3][GridMap2D.I_Y] - self.map.corners[0][GridMap2D.I_Y]
+        self.actStepSize[0] = self.nondimensionalStepRatio * \
+            ( self.map.corners[1][GridMap2D.I_X] - self.map.corners[0][GridMap2D.I_X] )
+        self.actStepSize[1] = self.nondimensionalStepRatio * \
+            ( self.map.corners[3][GridMap2D.I_Y] - self.map.corners[0][GridMap2D.I_Y] )
 
         self.nondimensionalStep = True
 
@@ -1100,8 +1103,10 @@ class GridMapEnv(object):
 
         # Non-dimensional step size.
         if ( True == self.nondimensionalStep ):
-            self.actStepSize[0] = self.map.corners[1][GridMap2D.I_X] - self.map.corners[0][GridMap2D.I_X]
-            self.actStepSize[1] = self.map.corners[3][GridMap2D.I_Y] - self.map.corners[0][GridMap2D.I_Y]
+            self.actStepSize[0] = self.nondimensionalStepRatio * \
+                ( self.map.corners[1][GridMap2D.I_X] - self.map.corners[0][GridMap2D.I_X] )
+            self.actStepSize[1] = self.nondimensionalStepRatio * \
+                ( self.map.corners[3][GridMap2D.I_Y] - self.map.corners[0][GridMap2D.I_Y] )
 
         # Clear step counter.
         self.nSteps = 0
@@ -1280,6 +1285,7 @@ class GridMapEnv(object):
             "mapFn": "Map.json", \
             "maxSteps": self.maxSteps, \
             "nondimensionalStep": self.nondimensionalStep, \
+            "nondimensionalStepRatio": self.nondimensionalStepRatio, \
             "actStepSize": self.actStepSize, \
             "visAgentRadius": self.visAgentRadius, \
             "visPathArrowWidth": self.visPathArrowWidth, \
@@ -1339,6 +1345,7 @@ class GridMapEnv(object):
         self.renderDir = "%s/%s" % ( self.workingDir, "Render" )
         self.maxSteps = d["maxSteps"]
         self.nondimensionalSetp = d["nondimensionalStep"]
+        self.nondimensionalSetpRatio = d["nondimensionalStepRatio"]
         self.actStepSize = d["actStepSize"]
 
         # Create a new map.
