@@ -6,6 +6,7 @@ import json
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.random import randn
 import os
 
 import LineIntersection2D
@@ -1020,6 +1021,13 @@ class GridMapEnv(object):
         self.nondimensionalStepRatio = 0.25 # For non-dimensional step, the maximum size of individual step compared to the length of the map.
         self.actStepSize = [0, 0] # Two element list. dx and dy.
 
+        self.isRandomCoordinating = False # If True, a noise will be added to the final coordinate produced by each calling to step() function.
+        self.randomCoordinatingVariance = 0 # The variance of the randomized coordinate.
+
+        self.fig = None # The matplotlib figure.
+        self.drawnAgentLocations = 0 # The number of agent locations that have been drawn on the canvas.
+        self.drawnAgentPaths     = 0 # The number of agent path that have been drawn on the canvas.
+
     def set_max_steps(self, m):
         assert( isinstance( m, (int, long) ) )
         assert( m >= 0 )
@@ -1066,6 +1074,26 @@ class GridMapEnv(object):
     def diable_nondimensional_step(self):
         self.nondimensionalStep = False
 
+    def enable_random_coordinating(self, v):
+        self.isRandomCoordinating = True
+        self.randomCoordinatingVariance = v
+
+    def disable_random_coordinating(self):
+        self.isRandomCoordinating = False
+
+    def randomize_action(self, coor, action):
+        """Randomize the action."""
+
+        # The original target.
+        ot = BlockCoor( coor.x + action.dx, coor.y + action.dy )
+
+        # Randomize ot.
+        ot.x += self.randomCoordinatingVariance * randn()
+        ot.y += self.randomCoordinatingVariance * randn()
+
+        # New action.
+        return BlockCoorDelta( ot.x - coor.x, ot.y - coor.y )
+
     def reset(self):
         """Reset the evironment."""
 
@@ -1077,6 +1105,11 @@ class GridMapEnv(object):
 
         if ( not os.path.isdir( self.renderDir ) ):
             os.makedirs( self.renderDir )
+
+        # Close render, if there are any.
+        self.close_render()
+        self.drawnAgentLocations = 0
+        self.drawnAgentPaths     = 0
 
         # Get the index of the starting block.
         index = self.map.get_index_starting_block()
@@ -1148,6 +1181,10 @@ class GridMapEnv(object):
             self.agentCurrentAct.dx *= self.actStepSize[GridMap2D.I_X]
             self.agentCurrentAct.dy *= self.actStepSize[GridMap2D.I_Y]
 
+        # Random coordinating.
+        if ( True == self.isRandomCoordinating ):
+            self.agentCurrentAct = self.randomize_action(self.agentCurrentLoc, self.agentCurrentAct)
+
         # Move.
         newLoc, value, termFlag = self.try_move( self.agentCurrentLoc, self.agentCurrentAct )
 
@@ -1178,7 +1215,7 @@ class GridMapEnv(object):
     def render(self, pause = 0, flagSave = False, fn = None):
         """Render with matplotlib.
         pause: Time measured in seconds to pause before close the rendered image.
-        If pause < 1 then the rendered image will not be closed and the process
+        If pause <= 0 then the rendered image will not be closed and the process
         will be blocked.
         flagSave: Save the rendered image if is set True.
         fn: Filename. If fn is None, a default name scheme will be used. No format extension.
@@ -1192,26 +1229,46 @@ class GridMapEnv(object):
 
         from matplotlib.patches import Rectangle, Circle
 
-        fig, ax = plt.subplots(1)
+        if ( self.fig is None ):
+            self.fig, ax = plt.subplots(1)
 
-        for br in self.map.blockRows:
-            for b in br:
-                rect = Rectangle( (b.coor[0], b.coor[1]), b.size[1], b.size[0], fill = True)
-                rect.set_facecolor(b.color)
-                rect.set_edgecolor("k")
-                ax.add_patch(rect)
+            for br in self.map.blockRows:
+                for b in br:
+                    rect = Rectangle( (b.coor[0], b.coor[1]), b.size[1], b.size[0], fill = True)
+                    rect.set_facecolor(b.color)
+                    rect.set_edgecolor("k")
+                    ax.add_patch(rect)
+
+            # Annotations.
+            plt.xlabel("x")
+            plt.ylabel("y")
+            titleStr = "%s:%s" % (self.name, self.map.name)
+            plt.title(titleStr)
+
+            # ax.autoscale()
+        else:
+            ax = plt.gca()
         
         # Agent locations.
-        for loc in self.agentLocs:
-            circle = Circle( (loc.x, loc.y), self.visAgentRadius, fill = True )
-            circle.set_facecolor( "#FFFF0080" )
-            circle.set_edgecolor( "k" )
-            ax.add_patch(circle)
+        nLocs = len( self.agentLocs )
+        if ( nLocs > 0 and self.drawnAgentLocations < nLocs ):
+            for i in range( self.drawnAgentLocations, nLocs ):
+                circle = Circle( (self.agentLocs[i].x, self.agentLocs[i].y), self.visAgentRadius, fill = True )
+                circle.set_facecolor( "#FFFF0080" )
+                circle.set_edgecolor( "k" )
+                ax.add_patch(circle)
+            
+            self.drawnAgentLocations = nLocs
+        
+        # for loc in self.agentLocs:
+        #     circle = Circle( (loc.x, loc.y), self.visAgentRadius, fill = True )
+        #     circle.set_facecolor( "#FFFF0080" )
+        #     circle.set_edgecolor( "k" )
+        #     ax.add_patch(circle)
 
         # Agent path.
-        n = len( self.agentLocs )
-        if ( n > 1 ):
-            for i in range(n-1):
+        if ( nLocs > 1 and self.drawnAgentPaths < nLocs - 1):
+            for i in range(self.drawnAgentPaths, nLocs-1):
                 loc0 = self.agentLocs[i]
                 loc1 = self.agentLocs[i+1]
 
@@ -1221,14 +1278,11 @@ class GridMapEnv(object):
                 plt.arrow( loc0.x, loc0.y, loc1.x - loc0.x, loc1.y - loc0.y, \
                     width=self.visPathArrowWidth, \
                     alpha=0.5, color='k', length_includes_head=True )
+                
+            self.drawnAgentPaths = nLocs - 1
 
-        ax.autoscale()
-
-        # Annotations.
-        plt.xlabel("x")
-        plt.ylabel("y")
-        titleStr = "%s:%s" % (self.name, self.map.name)
-        plt.title(titleStr)
+        plt.xlim( ( self.map.corners[0][GridMap2D.I_X], self.map.corners[1][GridMap2D.I_X] ) )
+        plt.ylim( ( self.map.corners[0][GridMap2D.I_Y], self.map.corners[3][GridMap2D.I_Y] ) )
 
         if ( True == flagSave ):
             if ( fn is None ):
@@ -1239,17 +1293,32 @@ class GridMapEnv(object):
             plt.savefig( saveFn, dpi = 300, format = "png" )
 
         if ( True == self.visIsForcePause ):
-            plt.show( block=False )
-            plt.pause( self.visForcePauseTime )
-            plt.close()
+            # plt.show( block=False )
+            # plt.pause( self.visForcePauseTime )
+            # plt.close()
+            self.fig.canvas.draw()
+            self.fig.canvas.flush_events()
+            plt.pause(self.visForcePauseTime)
         else:
-            if ( pause < 1 ):
+            if ( pause <= 0 ):
                 plt.show()
-            elif ( pause >= 1 ):
+            elif ( pause > 0 ):
                 print("Render %s for %f seconds." % (self.name, pause))
-                plt.show( block = False )
-                plt.pause( pause )
-                plt.close()
+                # plt.show( block = False )
+                # plt.pause( pause )
+                # plt.close()
+                self.fig.canvas.draw()
+                self.fig.canvas.flush_events()
+                plt.pause(pause)
+
+    def close_render(self):
+        if ( self.fig is not None ):
+            plt.close()
+            self.fig = None
+
+    def finalize(self):
+        # Close the render.
+        self.close_render()
 
     def save(self, fn = None):
         """
@@ -1286,6 +1355,8 @@ class GridMapEnv(object):
             "maxSteps": self.maxSteps, \
             "nondimensionalStep": self.nondimensionalStep, \
             "nondimensionalStepRatio": self.nondimensionalStepRatio, \
+            "isRandomCoordinating": self.isRandomCoordinating, \
+            "randomCoordinatingVariance": self.randomCoordinatingVariance, \
             "actStepSize": self.actStepSize, \
             "visAgentRadius": self.visAgentRadius, \
             "visPathArrowWidth": self.visPathArrowWidth, \
@@ -1344,9 +1415,11 @@ class GridMapEnv(object):
         self.name = d["name"]
         self.renderDir = "%s/%s" % ( self.workingDir, "Render" )
         self.maxSteps = d["maxSteps"]
-        self.nondimensionalSetp = d["nondimensionalStep"]
-        self.nondimensionalSetpRatio = d["nondimensionalStepRatio"]
+        self.nondimensionalStep = d["nondimensionalStep"]
+        self.nondimensionalStepRatio = d["nondimensionalStepRatio"]
         self.actStepSize = d["actStepSize"]
+        self.isRandomCoordinating = d["isRandomCoordinating"]
+        self.randomCoordinatingVariance = d["randomCoordinatingVariance"]
 
         # Create a new map.
         m = GridMap2D( rows = 1, cols = 1 ) # A temporay map.
