@@ -1028,6 +1028,10 @@ class GridMapEnv(object):
         self.drawnAgentLocations = 0 # The number of agent locations that have been drawn on the canvas.
         self.drawnAgentPaths     = 0 # The number of agent path that have been drawn on the canvas.
 
+    def set_working_dir(self, workingDir):
+        self.workingDir = workingDir
+        self.renderDir  = os.path.join( self.workingDir, "Render" )
+
     def set_max_steps(self, m):
         assert( isinstance( m, (int, long) ) )
         assert( m >= 0 )
@@ -1315,6 +1319,12 @@ class GridMapEnv(object):
         if ( self.fig is not None ):
             plt.close()
             self.fig = None
+
+    def save_render(self, fn):
+        if ( self.fig is None ):
+            raise GridMapException("No matplotlib figure is present. Could not save figure.")
+
+        plt.savefig( fn, dpi = 300, format = "png" )
 
     def finalize(self):
         # Close the render.
