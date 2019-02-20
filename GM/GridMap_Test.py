@@ -635,6 +635,7 @@ class TestGridMap2D_WithPotential(unittest.TestCase):
 
 class TestGridMapEnv(unittest.TestCase):
     def setUp(self):
+        self.haveGUI = True # Change this to False when testing on a remote servet that has no GUI.
         self.rows = 10
         self.cols = 20
         gridMap = GridMap.GridMap2D(self.rows, self.cols, outOfBoundValue=-200)
@@ -706,7 +707,8 @@ class TestGridMapEnv(unittest.TestCase):
     def test_dummy(self):
         print("test_dummy")
 
-        self.gme.render(1)
+        if ( True == self.haveGUI ):
+            self.gme.render(1)
 
         self.assertTrue( True )
     
@@ -2023,7 +2025,8 @@ class TestGridMapEnv(unittest.TestCase):
         self.assertEqual( totalVal, 97 )
 
         if ( True == flagRender ):
-            self.gme.render(3, flagSave=True)
+            if ( True == self.haveGUI ):
+                self.gme.render(3, flagSave=True)
 
     def test_step_from_start_to_end_02(self):
         print("test_step_from_start_to_end_02")
@@ -2064,7 +2067,8 @@ class TestGridMapEnv(unittest.TestCase):
         self.assertEqual( coor.y, self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5 * stepSizeY )
         self.assertEqual( totalVal, 97 )
 
-        self.gme.render(3, flagSave=True, fn="test_step_from_start_to_end_02")
+        if ( True == self.haveGUI ):
+            self.gme.render(3, flagSave=True, fn="test_step_from_start_to_end_02")
 
     def test_save_load(self):
         print("test_save_load")
