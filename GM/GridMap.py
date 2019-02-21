@@ -272,6 +272,9 @@ class GridMap2D(object):
         self.corners   = [] # A 4x2 2D list. Coordinates.
         self.blockRows = [] # A list contains rows of blocks.
 
+        self.centerCoor = BlockCoor(0, 0)
+        self.mapSize = [0, 0] # H, W, or, I_R, I_C
+
         self.haveStartingBlock = False
         self.startingBlockIdx = BlockIndex(0, 0)
 
@@ -300,6 +303,12 @@ class GridMap2D(object):
     def set_value_out_of_boundary(self, val):
         self.outOfBoundValue = val
 
+    def get_center_coor(self):
+        return copy.deepcopy( self.centerCoor )
+    
+    def get_map_size(self):
+        return copy.deepcopy( self.mapSize )
+
     def initialize(self):
         if ( True == self.isInitialized ):
             raise GridMapException("Map already initialized.")
@@ -327,6 +336,16 @@ class GridMap2D(object):
         self.corners.append( [ (cs[-1] + 1)*w,      rs[0]*h ] )
         self.corners.append( [ (cs[-1] + 1)*w, (rs[-1]+1)*h ] )
         self.corners.append( [        cs[0]*w, (rs[-1]+1)*h ] )
+
+        # Center.
+        self.centerCoor = BlockCoor( \
+            ( self.corners[1][GridMap2D.I_X] + self.corners[0][GridMap2D.I_X] ) / 2.0, \
+            ( self.corners[3][GridMap2D.I_Y] + self.corners[0][GridMap2D.I_Y] ) / 2.0 )
+
+        # Map size.
+        self.mapSize = [ \
+            self.corners[3][GridMap2D.I_Y] - self.corners[0][GridMap2D.I_Y], \
+            self.corners[1][GridMap2D.I_X] - self.corners[0][GridMap2D.I_X] ]
     
     def dump_JSON(self, fn):
         """
@@ -1021,6 +1040,10 @@ class GridMapEnv(object):
         self.nondimensionalStepRatio = 0.25 # For non-dimensional step, the maximum size of individual step compared to the length of the map.
         self.actStepSize = [0, 0] # Two element list. dx and dy.
 
+        self.normalizedCoordinate = False
+        self.centerCoordinate     = BlockCoor(0, 0)
+        self.halfMapSize          = [1, 1]
+
         self.isRandomCoordinating = False # If True, a noise will be added to the final coordinate produced by each calling to step() function.
         self.randomCoordinatingVariance = 0 # The variance of the randomized coordinate.
 
@@ -1077,6 +1100,20 @@ class GridMapEnv(object):
 
     def diable_nondimensional_step(self):
         self.nondimensionalStep = False
+
+    def enable_normalized_coordinate(self):
+        if ( self.map is None ):
+            raise GridMapException("GridMapEnv could not enable normalized coordinate. self.map is None.")
+        
+        self.centerCoordinate = self.map.get_center_coor()
+        self.halfMapSize = self.map.get_map_size()
+        self.halfMapSize[0] /= 2.0 # H.
+        self.halfMapSize[1] /= 2.0 # W.
+        
+        self.normalizedCoordinate = True
+    
+    def disable_normalized_coordinate(self):
+        self.normalizedCoordinate = False
 
     def enable_random_coordinating(self, v):
         self.isRandomCoordinating = True
@@ -1145,6 +1182,12 @@ class GridMapEnv(object):
             self.actStepSize[1] = self.nondimensionalStepRatio * \
                 ( self.map.corners[3][GridMap2D.I_Y] - self.map.corners[0][GridMap2D.I_Y] )
 
+        if ( True == self.normalizedCoordinate ):
+            self.centerCoordinate = self.map.get_center_coor()
+            self.halfMapSize = self.map.get_map_size()
+            self.halfMapSize[0] /= 2.0 # H.
+            self.halfMapSize[1] /= 2.0 # W.
+
         # Clear step counter.
         self.nSteps = 0
 
@@ -1165,7 +1208,13 @@ class GridMapEnv(object):
         # Monitor.
         self.tryMoveMaxCount = max( self.map.rows, self.map.cols ) * 2
 
-        return self.agentCurrentLoc
+        agentCurrentLocation = copy.deepcopy( self.agentCurrentLoc )
+
+        if ( True == self.normalizedCoordinate ):
+            agentCurrentLocation.x = ( agentCurrentLocation.x - self.centerCoordinate.x ) / self.halfMapSize[GridMap2D.I_C]
+            agentCurrentLocation.y = ( agentCurrentLocation.y - self.centerCoordinate.y ) / self.halfMapSize[GridMap2D.I_R]
+
+        return agentCurrentLocation
 
     def step(self, action):
         """
@@ -1213,6 +1262,10 @@ class GridMapEnv(object):
 
         if ( True == termFlag ):
             self.isTerminated = True
+
+        if ( True == self.normalizedCoordinate ):
+            newLoc.x = ( newLoc.x - self.centerCoordinate.x ) / self.halfMapSize[GridMap2D.I_C]
+            newLoc.y = ( newLoc.y - self.centerCoordinate.y ) / self.halfMapSize[GridMap2D.I_R]
 
         return newLoc, value, termFlag, None
 
@@ -1365,6 +1418,7 @@ class GridMapEnv(object):
             "maxSteps": self.maxSteps, \
             "nondimensionalStep": self.nondimensionalStep, \
             "nondimensionalStepRatio": self.nondimensionalStepRatio, \
+            "normalizedCoordinate": self.normalizedCoordinate, \
             "isRandomCoordinating": self.isRandomCoordinating, \
             "randomCoordinatingVariance": self.randomCoordinatingVariance, \
             "actStepSize": self.actStepSize, \
@@ -1428,6 +1482,7 @@ class GridMapEnv(object):
         self.nondimensionalStep = d["nondimensionalStep"]
         self.nondimensionalStepRatio = d["nondimensionalStepRatio"]
         self.actStepSize = d["actStepSize"]
+        self.normalizedCoordinate = d["normalizedCoordinate"]
         self.isRandomCoordinating = d["isRandomCoordinating"]
         self.randomCoordinatingVariance = d["randomCoordinatingVariance"]
 
