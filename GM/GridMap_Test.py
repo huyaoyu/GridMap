@@ -635,7 +635,7 @@ class TestGridMap2D_WithPotential(unittest.TestCase):
 
 class TestGridMapEnv(unittest.TestCase):
     def setUp(self):
-        self.haveGUI = True # Change this to False when testing on a remote servet that has no GUI.
+        self.haveGUI = False # Change this to False when testing on a remote servet that has no GUI.
         self.rows = 10
         self.cols = 20
         gridMap = GridMap.GridMap2D(self.rows, self.cols, outOfBoundValue=-200)
