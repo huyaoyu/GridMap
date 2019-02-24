@@ -1115,6 +1115,15 @@ class GridMapEnv(object):
     def disable_normalized_coordinate(self):
         self.normalizedCoordinate = False
 
+    def make_a_coor(self, x, y):
+        b = BlockCoor(x, y)
+
+        if ( True == self.normalizedCoordinate ):
+            b.x = x * self.halfMapSize[GridMap2D.I_C] + self.centerCoordinate.x
+            b.y = y * self.halfMapSize[GridMap2D.I_R] + self.centerCoordinate.y
+        
+        return b
+
     def enable_random_coordinating(self, v):
         self.isRandomCoordinating = True
         self.randomCoordinatingVariance = v
