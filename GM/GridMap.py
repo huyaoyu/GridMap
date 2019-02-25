@@ -1138,8 +1138,8 @@ class GridMapEnv(object):
         ot = BlockCoor( coor.x + action.dx, coor.y + action.dy )
 
         # Randomize ot.
-        ot.x += self.randomCoordinatingVariance * randn()
-        ot.y += self.randomCoordinatingVariance * randn()
+        ot.x += self.randomCoordinatingVariance * math.fabs( action.dx ) * randn()
+        ot.y += self.randomCoordinatingVariance * math.fabs( action.dy ) * randn()
 
         # New action.
         return BlockCoorDelta( ot.x - coor.x, ot.y - coor.y )
