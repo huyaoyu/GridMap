@@ -1,6 +1,7 @@
 
 from __future__ import print_function
 
+import math
 import numpy as np
 
 import GridMap
@@ -26,8 +27,24 @@ class GME_NP(GridMap.GridMapEnv):
         # # Create map.
         # self.map = GridMap.GridMap2D( 10, 20 )
 
+        self.maxStuckCount      = 0
+        self.stuckPenaltyFactor = -10
+        self.stuckCount         = 0
+        self.stuckState         = None
+
         # Member variables for compatibility.
         self.observation_space = np.array([0, 0]) # self.observation_spac.shape should be a tuple showing the shape of the state variable.
+
+    def enable_stuck_check(self, maxStuckCount, penaltyFactor ):
+        if ( maxStuckCount < 0 ):
+            raise GridMap.GridMapException("Max stuck count must be non-negative number.")
+
+        self.maxStuckCount      = maxStuckCount
+        self.stuckPenaltyFactor = penaltyFactor
+    
+    def disable_stuck_check(self):
+        self.maxStuckCount      = 0
+        self.stuckPenaltyFactor = 1.0
 
     def step(self, action):
         """
@@ -40,10 +57,30 @@ class GME_NP(GridMap.GridMapEnv):
 
         state = np.array( [coor.x, coor.y], dtype=np.float32 )
 
+        # Check stuck states.
+        if ( 0 != self.maxStuckCount ):
+            if ( self.stuckState is None ):
+                self.stuckState = state
+            else:
+                if ( state[0] == self.stuckState[0] and \
+                    state[1] == self.stuckState[1] ):
+                    self.stuckCount += 1
+                else:
+                    self.stuckCount = 0
+                    self.stuckState = None
+                
+                if ( self.maxStuckCount == self.stuckCount ):
+                    val = self.stuckPenaltyFactor * math.fabs( val )
+                    flagTerm = True
+
         return state, val, flagTerm, dummy
 
     def reset(self):
         res = super(GME_NP, self).reset()
+
+        # Clear the stuck states.
+        self.stuckCount = 0
+        self.stuckState = None
 
         return np.array([ res.x, res.y ])
 
