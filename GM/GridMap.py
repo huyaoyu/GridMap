@@ -165,6 +165,15 @@ class Block(object):
         
         return self.corners[idx]
 
+    def is_inside(self, x, y):
+        if ( x >= self.corners[0][0] and \
+             x <  self.corners[1][0] and \
+             y >= self.corners[0][1] and \
+             y <  self.corners[3][1] ):
+            return True
+        
+        return False
+
 class NormalBlock(Block):
     def __init__(self, x = 0, y = 0, h = 1, w = 1, value = -0.1):
         super(NormalBlock, self).__init__(x, y, h, w)
@@ -193,13 +202,39 @@ class StartingBlock(Block):
         self.value = value
 
 class EndingBlock(Block):
-    def __init__(self, x = 0, y = 0, h = 1, w = 1, value = 100):
+    def __init__(self, x = 0, y = 0, h = 1, w = 1, value = 100, endPoint=None):
         super(EndingBlock, self).__init__(x, y, h, w)
     
         # Member variables defined in the super classes.
         self.color = "#0000FFFF"
         self.name  = "EndingBlock"
         self.value = value
+
+        self.endPoint = [x + w/2.0, y + h/2.0]
+
+        if ( endPoint is not None ):
+            self.set_end_point( endPoint[0], endPoint[1] )
+    
+    def set_end_point(self, x, y):
+        if ( self.is_inside( x, y ) ):
+            self.endPoint = [x, y]
+        else:
+            raise GridMapException("Specified coordinate (%f, %f) is out of the range of the ending block ( %f <= x < %f, %f <= y < %f )." % \
+                x, y, self.corners[0][0], self.corners[1][0], self.corners[0][1], self.corners[3][1])
+    
+    def is_in_range(self, x, y, r):
+        if ( r < 0 ):
+            raise GridMapException( "r should not be negative. r = %f." % (r) )
+
+        dx = x - self.endPoint[0]
+        dy = y - self.endPoint[1]
+
+        d = math.sqrt( dx**2 + dy**2 )
+
+        if ( d <= r ):
+            return True
+        else:
+            return False
 
 def add_element_to_2D_list(ele, li):
     """
@@ -492,6 +527,20 @@ class GridMap2D(object):
         
         return False
 
+    def is_around_ending_block(self, coor, radius):
+        """Return ture if coor is in a circle defined by the center of the ending block."""
+
+        if ( True == self.is_out_of_or_on_boundary(coor) ):
+            return False
+        
+        loc = self.is_corner_or_principle_line(coor)
+        if ( True == loc[0] or True == loc[1] or True == loc[2] ):
+            return False
+
+        # Get the coordinate of the ending block.
+        
+        return False
+
     def enable_potential_value(self, valMax = None, valPerStep = None):
         if ( valMax is not None ):
             self.potentialValueMax     = valMax
@@ -567,7 +616,10 @@ class GridMap2D(object):
         else:
             raise TypeError("index should be an object of BlockIndex or a list or a tuple.")
 
-    def set_ending_block_s(self, r, c, value=None):
+    def set_ending_block_s(self, r, c, value=None, endPoint=None):
+        """
+        endPoint is a two element list containing the ending point coordinates.
+        """
         assert( isinstance(r, (int, long)) )
         assert( isinstance(c, (int, long)) )
         
@@ -579,7 +631,7 @@ class GridMap2D(object):
             self.overwrite_block( self.endingBlockIdx.r, self.endingBlockIdx.c, \
                 NormalBlock( cl[GridMap2D.I_X], cl[GridMap2D.I_Y], self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueNormalBlock ) )
         
-        # Overwrite a block. Make it to be a starting block.
+        # Overwrite a block. Make it to be a ending block.
 
         if ( value is not None ):
             self.valueEndingBlock = value
@@ -588,7 +640,7 @@ class GridMap2D(object):
         coor = self.convert_to_coordinates( BlockIndex( r, c ) )
 
         self.overwrite_block( r, c, \
-            EndingBlock(coor.x, coor.y, self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueEndingBlock) )
+            EndingBlock(coor.x, coor.y, self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueEndingBlock, endPoint=endPoint) )
         self.endingBlockIdx.r = r
         self.endingBlockIdx.c = c
 
@@ -597,11 +649,11 @@ class GridMap2D(object):
         if ( True == self.havePotentialValue ):
             self.update_potential_value()
     
-    def set_ending_block(self, index, value=None):
+    def set_ending_block(self, index, value=None, endPoint=None):
         if ( isinstance( index, BlockIndex ) ):
-            self.set_ending_block_s( index.r, index.c, value )
+            self.set_ending_block_s( index.r, index.c, value, endPoint=[ endPoint.x, endPoint.y ] )
         elif ( isinstance( index, (list, tuple) ) ):
-            self.set_ending_block_s( index[GridMap2D.I_R], index[GridMap2D.I_C], value )
+            self.set_ending_block_s( index[GridMap2D.I_R], index[GridMap2D.I_C], value, endPoint=endPoint )
         else:
             raise TypeError("index should be an object of BlockIndex or a list or a tuple.")
 
@@ -857,7 +909,6 @@ origin = [%d, %d], size = [%d, %d].""" \
             val += valNB
         
         return val
-
 
     def evaluate_coordinate_s(self, x, y):
         """
@@ -2198,10 +2249,15 @@ if __name__ == "__main__":
 
     # Overwrite blocks.
     gm2d.set_starting_block((0, 0))
-    gm2d.set_ending_block((9, 19))
+    gm2d.set_ending_block((9, 19), endPoint=(19.1, 9.1))
     gm2d.add_obstacle((4, 10))
     gm2d.add_obstacle((5, 10))
     gm2d.add_obstacle((6, 10))
+
+    indexEndingBlock = gm2d.get_index_ending_block()
+    ebGm2d = gm2d.get_block(indexEndingBlock)
+
+    print("ebGm2d.is_in_range(19.2, 9.2, 1) = {}".format( ebGm2d.is_in_range(19.2, 9.2, 1) ) )
 
     # Describe the map.
     print(gm2d)
@@ -2219,11 +2275,11 @@ if __name__ == "__main__":
     print("Value of (   10,   5.5) is %f" % ( gm2d.evaluate_coordinate( (10, 5.5) ) ) )
     print("Value of ( 10.5,     5) is %f" % ( gm2d.evaluate_coordinate( (10.5, 5) ) ) )
     print("Value of (10.99,  5.99) is %f" % ( gm2d.evaluate_coordinate( (10.99, 5.99) ) ) )
-    print("Value of (   -1,    -1) is %f" % ( gm2d.evaluate_coordinate( (-1, -1) ) ) )
-    print("Value of (    9, -0.01) is %f" % ( gm2d.evaluate_coordinate( (9, -0.01) ) ) )
-    print("Value of (    9, 10.01) is %f" % ( gm2d.evaluate_coordinate( (9, 10.01) ) ) )
-    print("Value of (-0.01,     5) is %f" % ( gm2d.evaluate_coordinate( (-0.01, 5) ) ) )
-    print("Value of (20.01,     5) is %f" % ( gm2d.evaluate_coordinate( (20.01, 5) ) ) )
+    # print("Value of (   -1,    -1) is %f" % ( gm2d.evaluate_coordinate( (-1, -1) ) ) )
+    # print("Value of (    9, -0.01) is %f" % ( gm2d.evaluate_coordinate( (9, -0.01) ) ) )
+    # print("Value of (    9, 10.01) is %f" % ( gm2d.evaluate_coordinate( (9, 10.01) ) ) )
+    # print("Value of (-0.01,     5) is %f" % ( gm2d.evaluate_coordinate( (-0.01, 5) ) ) )
+    # print("Value of (20.01,     5) is %f" % ( gm2d.evaluate_coordinate( (20.01, 5) ) ) )
 
     # Create a GridMapEnv object.
     gme = GridMapEnv(gridMap = gm2d)
