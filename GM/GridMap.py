@@ -1369,6 +1369,7 @@ class GridMapEnv(object):
         # Move.
         newLoc, value, termFlag = self.try_move( self.agentCurrentLoc, self.agentCurrentAct )
 
+        # Additional action value.
         if ( True == self.flagActionValue ):
             value += self.actionValueFactor * math.sqrt( \
                 ( math.fabs(action.dx) - 1.0 )**2 + \
@@ -1551,6 +1552,12 @@ class GridMapEnv(object):
             "maxSteps": self.maxSteps, \
             "nondimensionalStep": self.nondimensionalStep, \
             "nondimensionalStepRatio": self.nondimensionalStepRatio, \
+            "flagActionClip": self.flagActionClip, \
+            "actionClip": self.actionClip, \
+            "flagActionValue": self.flagActionValue, \
+            "actionValueFactor": self.actionValueFactor, \
+            "endPointMode": self.endPointMode, \
+            "endPointRadius": self.endPointRadius, \
             "normalizedCoordinate": self.normalizedCoordinate, \
             "isRandomCoordinating": self.isRandomCoordinating, \
             "randomCoordinatingVariance": self.randomCoordinatingVariance, \
@@ -1614,6 +1621,12 @@ class GridMapEnv(object):
         self.maxSteps = d["maxSteps"]
         self.nondimensionalStep = d["nondimensionalStep"]
         self.nondimensionalStepRatio = d["nondimensionalStepRatio"]
+        self.flagActionClip = d["flagActionClip"]
+        self.actionClip = d["actionClip"]
+        self.flagActionValue = d["flagActionValue"]
+        self.actionValueFactor = d["actionValueFactor"]
+        self.endPointMode = d["endPointMode"]
+        self.endPointRadius = d["endPointRadius"]
         self.actStepSize = d["actStepSize"]
         self.normalizedCoordinate = d["normalizedCoordinate"]
         self.isRandomCoordinating = d["isRandomCoordinating"]
