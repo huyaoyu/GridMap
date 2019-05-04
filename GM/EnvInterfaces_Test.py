@@ -12,8 +12,10 @@ class TestGME_NP(unittest.TestCase):
         self.cols = 20
 
         gridMap = GridMap.GridMap2D(self.rows, self.cols, outOfBoundValue=-200)
+        gridMap.set_value_normal_block(-1)
+        gridMap.set_value_ending_block(100)
         gridMap.initialize()
-        
+
         # Overwrite blocks.
         gridMap.set_starting_block((0, 0))
         gridMap.set_ending_block((9, 19))
@@ -80,6 +82,8 @@ class TestGME_NP_02(unittest.TestCase):
         self.cols = 11
 
         gridMap = GridMap.GridMap2D(self.rows, self.cols, name="ZMap", outOfBoundValue=-200)
+        gridMap.set_value_normal_block(-1)
+        gridMap.set_value_ending_block(100)
         gridMap.initialize()
         
         # Overwrite blocks.

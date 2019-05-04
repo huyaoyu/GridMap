@@ -532,14 +532,11 @@ class GridMap2D(object):
 
         if ( True == self.is_out_of_or_on_boundary(coor) ):
             return False
-        
-        loc = self.is_corner_or_principle_line(coor)
-        if ( True == loc[0] or True == loc[1] or True == loc[2] ):
-            return False
 
-        # Get the coordinate of the ending block.
-        
-        return False
+        # Get the ending block.
+        eb = self.get_block(self.endingBlockIdx)
+
+        return eb.is_in_range( coor.x, coor.y, radius )
 
     def enable_potential_value(self, valMax = None, valPerStep = None):
         if ( valMax is not None ):
@@ -651,7 +648,10 @@ class GridMap2D(object):
     
     def set_ending_block(self, index, value=None, endPoint=None):
         if ( isinstance( index, BlockIndex ) ):
-            self.set_ending_block_s( index.r, index.c, value, endPoint=[ endPoint.x, endPoint.y ] )
+            if ( endPoint is None ):
+                self.set_ending_block_s( index.r, index.c, value )
+            else:
+                self.set_ending_block_s( index.r, index.c, value, endPoint=[ endPoint.x, endPoint.y ] )
         elif ( isinstance( index, (list, tuple) ) ):
             self.set_ending_block_s( index[GridMap2D.I_R], index[GridMap2D.I_C], value, endPoint=endPoint )
         else:
@@ -1059,6 +1059,9 @@ origin = [%d, %d], size = [%d, %d].""" \
         return res
 
 class GridMapEnv(object):
+    END_POINT_MODE_BLOCK  = 1
+    END_POINT_MODE_RADIUS = 2
+
     def __init__(self, name = "DefaultGridMapEnv", gridMap = None, workingDir = "./"):
         self.name = name
         self.map  = gridMap
@@ -1066,6 +1069,10 @@ class GridMapEnv(object):
         self.renderDir = os.path.join( self.workingDir, "Render" )
 
         self.agentStartingLoc = None # Should be an object of BlockCoor.
+
+        # Ending point mode.
+        self.endPointMode = GridMapEnv.END_POINT_MODE_BLOCK
+        self.endPointRadius = 1.0 # Should be updated if self.map is set later.
 
         self.isTerminated = False
         self.nSteps = 0
@@ -1091,12 +1098,18 @@ class GridMapEnv(object):
         self.nondimensionalStepRatio = 0.25 # For non-dimensional step, the maximum size of individual step compared to the length of the map.
         self.actStepSize = [0, 0] # Two element list. dx and dy.
 
+        self.flagActionClip = False
+        self.actionClip = [-1, 1]
+
         self.normalizedCoordinate = False
         self.centerCoordinate     = BlockCoor(0, 0)
         self.halfMapSize          = [1, 1]
 
         self.isRandomCoordinating = False # If True, a noise will be added to the final coordinate produced by each calling to step() function.
         self.randomCoordinatingVariance = 0 # The variance of the randomized coordinate.
+
+        self.flagActionValue = False
+        self.actionValueFactor = 1.0
 
         self.fig = None # The matplotlib figure.
         self.drawnAgentLocations = 0 # The number of agent locations that have been drawn on the canvas.
@@ -1105,6 +1118,18 @@ class GridMapEnv(object):
     def set_working_dir(self, workingDir):
         self.workingDir = workingDir
         self.renderDir  = os.path.join( self.workingDir, "Render" )
+
+    def enable_ending_point_radius(self, r):
+        assert( r > 0 )
+
+        self.endPointRadius = r
+        self.endPointMode = GridMapEnv.END_POINT_MODE_RADIUS
+
+    def disable_ending_point_radius(self):
+        self.endPointMode = GridMapEnv.END_POINT_MODE_BLOCK
+
+    def get_ending_point_radius(self):
+        return self.endPointRadius
 
     def set_max_steps(self, m):
         assert( isinstance( m, (int, long) ) )
@@ -1142,15 +1167,45 @@ class GridMapEnv(object):
         if ( self.map is None ):
             raise GridMapException("GridMapEnv could not enable non-dimensional step. self.map is None.")
         
-        self.actStepSize[0] = self.nondimensionalStepRatio * \
-            ( self.map.corners[1][GridMap2D.I_X] - self.map.corners[0][GridMap2D.I_X] )
-        self.actStepSize[1] = self.nondimensionalStepRatio * \
-            ( self.map.corners[3][GridMap2D.I_Y] - self.map.corners[0][GridMap2D.I_Y] )
+        # self.actStepSize[0] = self.nondimensionalStepRatio * \
+        #     ( self.map.corners[1][GridMap2D.I_X] - self.map.corners[0][GridMap2D.I_X] )
+        # self.actStepSize[1] = self.nondimensionalStepRatio * \
+        #     ( self.map.corners[3][GridMap2D.I_Y] - self.map.corners[0][GridMap2D.I_Y] )
+
+        self.actStepSize[0] = self.map.get_step_size()[ GridMap2D.I_X ]
+        self.actStepSize[1] = self.map.get_step_size()[ GridMap2D.I_Y ]
 
         self.nondimensionalStep = True
 
-    def diable_nondimensional_step(self):
+    def disable_nondimensional_step(self):
         self.nondimensionalStep = False
+
+    def enable_action_clipping(self, cpMin, cpMax):
+        assert( cpMin < cpMax )
+
+        self.actionClip = [ cpMin, cpMax ]
+        self.flagActionClip = True
+
+    def disable_action_clipping(self):
+        self.flagActionClip = False
+
+    def clip_action(self, action):
+        if ( False == self.flagActionClip ):
+            raise GridMapException("Action clipping is disabled.")
+        
+        clipped = copy.deepcopy(action)
+
+        if ( action.dx < self.actionClip[0] ):
+            clipped.dx = self.actionClip[0]
+        elif ( action.dx > self.actionClip[1] ):
+            clipped.dx = self.actionClip[1]
+
+        if ( action.dy < self.actionClip[0] ):
+            clipped.dy = self.actionClip[0]
+        elif ( action.cy > self.actionClip[1] ):
+            clipped.dy = self.actionClip[1]
+        
+        return clipped
 
     def enable_normalized_coordinate(self):
         if ( self.map is None ):
@@ -1194,6 +1249,15 @@ class GridMapEnv(object):
 
         # New action.
         return BlockCoorDelta( ot.x - coor.x, ot.y - coor.y )
+
+    def enable_action_value(self, factor):
+        self.actionValueFactor = factor
+        self.flagActionValue = True
+        self.enable_nondimensional_step()
+
+    def disable_action_value(self):
+        self.flagActionValue = False
+        self.disable_nondimensional_step()
 
     def reset(self):
         """Reset the evironment."""
@@ -1289,6 +1353,10 @@ class GridMapEnv(object):
         
         self.agentCurrentAct = copy.deepcopy( action )
 
+        # Action clipping.
+        if ( True == self.flagActionClip ):
+            self.agentCurrentAct = self.clip_action( self.agentCurrentAct )
+
         # Non-dimensional step.
         if ( True == self.nondimensionalStep ):
             self.agentCurrentAct.dx *= self.actStepSize[GridMap2D.I_X]
@@ -1300,6 +1368,11 @@ class GridMapEnv(object):
 
         # Move.
         newLoc, value, termFlag = self.try_move( self.agentCurrentLoc, self.agentCurrentAct )
+
+        if ( True == self.flagActionValue ):
+            value += self.actionValueFactor * math.sqrt( \
+                ( math.fabs(action.dx) - 1.0 )**2 + \
+                ( math.fabs(action.dy) - 1.0 )**2 )
 
         # Update current location of the agent.
         self.agentCurrentLoc = copy.deepcopy( newLoc )
@@ -2184,8 +2257,14 @@ class GridMapEnv(object):
         # Check if it is in the ending block.
         flagTerm = False
 
-        if ( True == self.map.is_in_ending_block( coor ) ):
-            flagTerm = True
+        if ( GridMapEnv.END_POINT_MODE_BLOCK == self.endPointMode ):
+            if ( True == self.map.is_in_ending_block( coor ) ):
+                flagTerm = True
+        elif ( GridMapEnv.END_POINT_MODE_RADIUS == self.endPointMode ):
+            if ( True == self.map.is_around_ending_block( coor, self.endPointRadius ) ):
+                flagTerm = True
+        else:
+            raise GridMapException("Unexpected self.endPointMode. self.endPointMode = {}".format(self.endPointMode))
 
         return coor, val, flagTerm
 

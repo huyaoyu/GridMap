@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import copy
+import math
 import os
 import unittest
 
@@ -197,6 +198,57 @@ class TestGridMap2D(unittest.TestCase):
         coor.x = (self.cols-0.0) * self.map.get_step_size()[GridMap.GridMap2D.I_X]
         coor.y = (self.rows-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
         self.assertFalse( self.map.is_in_ending_block( coor ) )
+
+    def test_is_around_ending_block(self):
+        print("test_is_around_ending_block")
+
+        coor = GridMap.BlockCoor( \
+            (self.cols-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_X], \
+            (self.rows-0.5) * self.map.get_step_size()[GridMap.GridMap2D.I_Y] )
+        self.assertTrue( self.map.is_around_ending_block( coor, 1.0 ) )
+
+        coorTemp = copy.deepcopy( coor )
+
+        # Out of the range of the ending point in terms of x-coordinate.
+        coor.x = (self.cols-2) * self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        self.assertFalse( self.map.is_around_ending_block( coor, 1.0 ) )
+
+        # Out of the range of the ending point in terms of y-coordinate.
+        coor = copy.deepcopy( coorTemp )
+        coor.y = (self.rows-2) * self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        self.assertFalse( self.map.is_around_ending_block( coor, 1.0 ) )
+
+        # Right out of the range of the ending point in terms of x-coordinate.
+        coor = copy.deepcopy( coorTemp )
+        stepX = self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coor.x = (self.cols-1.6) * stepX
+        self.assertFalse( self.map.is_around_ending_block( coor, stepX ) )
+
+        # Right out of the range of the ending point in terms of y-coordinate.
+        coor = copy.deepcopy( coorTemp )
+        stepY = self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        coor.y = (self.rows-1.6) * stepY
+        self.assertFalse( self.map.is_around_ending_block( coor, stepY ) )
+
+        # Right in the range of the ending point in terms of x-coordinate.
+        coor = copy.deepcopy( coorTemp )
+        stepX = self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        coor.x = (self.cols-1.4) * stepX
+        self.assertTrue( self.map.is_around_ending_block( coor, stepX ) )
+
+        # Right in the range of the ending point in terms of y-coordinate.
+        coor = copy.deepcopy( coorTemp )
+        stepY = self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        coor.y = (self.rows-1.4) * stepY
+        self.assertTrue( self.map.is_around_ending_block( coor, stepY ) )
+
+        # Right out of the range of the ending point in terms of x- anc y-coordinates.
+        coor = copy.deepcopy( coorTemp )
+        stepX = self.map.get_step_size()[GridMap.GridMap2D.I_X]
+        stepY = self.map.get_step_size()[GridMap.GridMap2D.I_Y]
+        coor.x = (self.cols-1.6) * stepX
+        coor.y = (self.rows-1.6) * stepY
+        self.assertFalse( self.map.is_around_ending_block( coor, math.sqrt( stepX**2 + stepY**2 ) ) )
 
     def test_set_starting_block(self):
         print("test_set_starting_block")
@@ -658,6 +710,10 @@ class TestGridMapEnv(unittest.TestCase):
         gridMap.add_obstacle((5, 19))
         gridMap.add_obstacle((6, 10))
         gridMap.add_obstacle((9, 10))
+
+        # stepX = gridMap.get_step_size()[ GridMap.GridMap2D.I_X ]
+        # stepY = gridMap.get_step_size()[ GridMap.GridMap2D.I_Y ]
+        # radius = math.sqrt( stepX**2 + stepY**2 )
 
         self.workingDir = "./WD_TestGridMapEnv"
 
@@ -2069,6 +2125,107 @@ class TestGridMapEnv(unittest.TestCase):
 
         if ( True == self.haveGUI ):
             self.gme.render(3, flagSave=True, fn="test_step_from_start_to_end_02")
+
+    def test_step_from_start_to_end_radius(self, flagSilence = False, flagRender = True):
+        if ( False == flagSilence ):
+            print("test_step_from_start_to_end_radius")
+
+        stepSizeX = self.gme.map.get_step_size()[GridMap.GridMap2D.I_X]
+        stepSizeY = self.gme.map.get_step_size()[GridMap.GridMap2D.I_Y]
+
+        radius = math.sqrt( stepSizeX**2 + stepSizeY**2 ) / 2
+        if ( False == flagSilence ):
+            print( "radius = %f." % ( radius ) )
+
+        # Reset the environment.
+        self.gme.enable_ending_point_radius(radius)
+        self.gme.reset()
+
+        totalVal = 0
+
+        # Move north with 1 step.
+        action = GridMap.BlockCoorDelta( 0, stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        self.assertFalse( flagTerm )
+        totalVal += val
+
+        # Move east with 8 steps.
+        action = GridMap.BlockCoorDelta( 18 * stepSizeX, 0 )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        self.assertFalse( flagTerm )
+        totalVal += val
+
+        # Move north with 8 steps.
+        action = GridMap.BlockCoorDelta( 0, 8 * stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        self.assertFalse( flagTerm )
+        totalVal += val
+
+        # Move east with 1 step. In the ending block.
+        action = GridMap.BlockCoorDelta( stepSizeX, 0 )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        self.assertTrue( flagTerm )
+        totalVal += val
+
+        self.assertEqual( coor.x, self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 0.5 * stepSizeX )
+        self.assertEqual( coor.y, self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5 * stepSizeY )
+        self.assertEqual( totalVal, 97 )
+
+        if ( True == flagRender ):
+            if ( True == self.haveGUI ):
+                self.gme.render(3, flagSave=True)
+
+        # Disable ending point radius mdoe.
+        self.gme.disable_ending_point_radius()
+
+    def test_step_from_start_to_end_radius_02(self):
+        print("test_step_from_start_to_end_radius_02")
+
+        stepSizeX = self.gme.map.get_step_size()[GridMap.GridMap2D.I_X]
+        stepSizeY = self.gme.map.get_step_size()[GridMap.GridMap2D.I_Y]
+
+        radius = math.sqrt( stepSizeX**2 + stepSizeY**2 ) / 2
+        print( "radius = %f." % ( radius ) )
+
+        # Reset the environment.
+        self.gme.enable_ending_point_radius(radius)
+        self.gme.reset()
+
+        totalVal = 0
+
+        # Move east with 1 step.
+        action = GridMap.BlockCoorDelta( stepSizeX, 0 )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        self.assertFalse( flagTerm )
+        totalVal += val
+
+        # Move north with 8 steps.
+        action = GridMap.BlockCoorDelta( 0, 8 * stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        self.assertFalse( flagTerm )
+        totalVal += val
+
+        # Move east with 18 steps.
+        action = GridMap.BlockCoorDelta( 18 * stepSizeX, 0 )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        self.assertFalse( flagTerm )
+        totalVal += val
+
+        # Move north with 1 step. In the ending block.
+        action = GridMap.BlockCoorDelta( 0, stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        self.assertTrue( flagTerm )
+        totalVal += val
+
+        self.assertEqual( coor.x, self.gme.map.corners[2][GridMap.GridMap2D.I_X] - 0.5 * stepSizeX )
+        self.assertEqual( coor.y, self.gme.map.corners[2][GridMap.GridMap2D.I_Y] - 0.5 * stepSizeY )
+        self.assertEqual( totalVal, 97 )
+
+        if ( True == self.haveGUI ):
+            self.gme.render(3, flagSave=True, fn="test_step_from_start_to_end_02")
+
+        # Disable ending point radius mode.
+        self.gme.disable_ending_point_radius()
 
     def test_save_load(self):
         print("test_save_load")
