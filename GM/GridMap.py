@@ -1202,7 +1202,7 @@ class GridMapEnv(object):
 
         if ( action.dy < self.actionClip[0] ):
             clipped.dy = self.actionClip[0]
-        elif ( action.cy > self.actionClip[1] ):
+        elif ( action.dy > self.actionClip[1] ):
             clipped.dy = self.actionClip[1]
         
         return clipped
@@ -1352,7 +1352,7 @@ class GridMapEnv(object):
             raise GridMapException("Episode already terminated.")
         
         self.agentCurrentAct = copy.deepcopy( action )
-
+        # import ipdb; ipdb.set_trace()
         # Action clipping.
         if ( True == self.flagActionClip ):
             self.agentCurrentAct = self.clip_action( self.agentCurrentAct )
