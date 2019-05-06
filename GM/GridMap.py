@@ -6,7 +6,7 @@ import json
 import math
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.random import randn
+from numpy.random import randn, rand
 import os
 
 import LineIntersection2D
@@ -65,6 +65,12 @@ class BlockCoor(object):
 
     def __str__(self):
         return "coor({}, {})".format( self.x, self.y )
+
+def two_coor_distance(c0, c1):
+    dx = c1.x - c0.x
+    dy = c1.y - c0.y
+
+    return math.sqrt( dx**2 + dy**2 )
 
 class BlockCoorDelta(object):
     def __init__(self, dx, dy):
@@ -193,13 +199,32 @@ class ObstacleBlock(Block):
         self.value = value
 
 class StartingBlock(Block):
-    def __init__(self, x = 0, y = 0, h = 1, w = 1, value = 0):
+    def __init__(self, x = 0, y = 0, h = 1, w = 1, value = 0, startingPoint=None):
         super(StartingBlock, self).__init__(x, y, h, w)
 
         # Member variables defined in the super classes.
         self.color = "#00FF00FF"
         self.name  = "StartingBlock"
         self.value = value
+
+        self.startingPoint = [ x + w/2.0, y + h/2.0 ]
+
+        if ( startingPoint is not None ):
+            self.set_starting_point( startingPoint[0], startingPoint[1] )
+
+    def set_starting_point(self, x, y):
+        if ( self.is_inside(x, y) ):
+            self.startingPoint = [ x, y ]
+        else:
+            raise GridMapException("Specified coordinate (%f, %f) is out of the range of the starting block ( %f <= x < %f, %f <= y < %f )." % \
+                x, y, self.corners[0][0], self.corners[1][0], self.corners[0][1], self.corners[3][1])
+
+    def get_starting_point_coor(self):
+        coor = BlockCoor( self.startingPoint[0], self.startingPoint[1] )
+        return coor
+    
+    def get_starting_point_list(self):
+        return self.startingPoint
 
 class EndingBlock(Block):
     def __init__(self, x = 0, y = 0, h = 1, w = 1, value = 100, endPoint=None):
@@ -235,6 +260,13 @@ class EndingBlock(Block):
             return True
         else:
             return False
+
+    def get_ending_point_coor(self):
+        coor = BlockCoor( self.endPoint[0], self.endPoint[1] )
+        return coor
+    
+    def get_ending_point_list(self):
+        return copy.deepcopy( self.endPoint )
 
 def add_element_to_2D_list(ele, li):
     """
@@ -311,10 +343,12 @@ class GridMap2D(object):
         self.mapSize = [0, 0] # H, W, or, I_R, I_C
 
         self.haveStartingBlock = False
-        self.startingBlockIdx = BlockIndex(0, 0)
+        self.startingBlockIdx  = BlockIndex(0, 0)
+        self.startingPoint     = BlockCoor(0, 0)
 
         self.haveEndingBlock = False
         self.endingBlockIdx  = BlockIndex(0, 0)
+        self.endingPoint     = BlockCoor(0, 0)
 
         self.obstacleIndices = []
 
@@ -402,8 +436,10 @@ class GridMap2D(object):
             "valueObstacleBlock": self.valueObstacleBlock, \
             "haveStartingBlock": self.haveStartingBlock, \
             "startingBlockIdx": [ self.startingBlockIdx.r, self.startingBlockIdx.c ], \
+            "startingPoint": [ self.startingPoint.x, self.startingPoint.y ], \
             "haveEndingBlock": self.haveEndingBlock, \
             "endingBlockIdx": [ self.endingBlockIdx.r, self.endingBlockIdx.c ], \
+            "endingPoint": [ self.endingPoint.x, self.endingPoint.y ], \
             "obstacleIndices": self.obstacleIndices
             }
         
@@ -448,18 +484,22 @@ class GridMap2D(object):
         if ( True == d["haveStartingBlock"] ):
             self.set_starting_block( \
                 BlockIndex( \
-                    d["startingBlockIdx"][0], d["startingBlockIdx"][1] ) )
+                    d["startingBlockIdx"][0], d["startingBlockIdx"][1] ),
+                startingPoint=BlockCoor( 
+                    d["startingPoint"][0], d["startingPoint"][1] ) )
         
         if ( True == d["haveEndingBlock"] ):
             self.set_ending_block( \
                 BlockIndex( \
-                    d["endingBlockIdx"][0], d["endingBlockIdx"][1] ) )
+                    d["endingBlockIdx"][0], d["endingBlockIdx"][1] ),
+                endPoint=BlockCoor(
+                    d["endingPoint"][0], d["endingPoint"][1] ) )
 
         for obs in d["obstacleIndices"]:
             self.add_obstacle( \
                 BlockIndex( \
                     obs[0], obs[1] ) )
-    
+
     def get_block(self, index):
         if ( isinstance( index, BlockIndex ) ):
             if ( index.r >= self.rows or index.c >= self.cols ):
@@ -578,7 +618,7 @@ class GridMap2D(object):
             
             idx.r += 1
 
-    def set_starting_block_s(self, r, c, value = None):
+    def set_starting_block_s(self, r, c, value = None, startingPoint=None):
         assert( isinstance(r, (int, long)) )
         assert( isinstance(c, (int, long)) )
         
@@ -598,20 +638,45 @@ class GridMap2D(object):
         # Coordinate of the new starting block.
         coor = self.convert_to_coordinates( BlockIndex( r, c ) )
 
-        self.overwrite_block( r, c, \
-            StartingBlock( coor.x, coor.y, self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueStartingBlock ) )
+        b = StartingBlock( coor.x, coor.y, self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueStartingBlock, startingPoint=startingPoint )
+        self.overwrite_block( r, c, b )
         self.startingBlockIdx.r = r
         self.startingBlockIdx.c = c
+        self.startingPoint = b.get_starting_point_coor()
 
         self.haveStartingBlock = True
 
-    def set_starting_block(self, index, value = None):
+    def set_starting_block(self, index, value = None, startingPoint=None):
         if ( isinstance( index, BlockIndex ) ):
-            self.set_starting_block_s( index.r, index.c, value )
+            if ( startingPoint is None ):
+                self.set_starting_block_s( index.r, index.c, value )
+            else:
+                self.set_starting_block_s( index.r, index.c, value, startingPoint=[ startingPoint.x, startingPoint.y ] )
         elif ( isinstance( index, (list, tuple) ) ):
-            self.set_starting_block_s( index[GridMap2D.I_R], index[GridMap2D.I_C], value )
+            self.set_starting_block_s( index[GridMap2D.I_R], index[GridMap2D.I_C], value, startingPoint=startingPoint )
         else:
             raise TypeError("index should be an object of BlockIndex or a list or a tuple.")
+
+    def random_starting_block(self, value):
+        """
+        NOTE: If the map has starting or ending blocks, the new randomly
+        asssigned starting block will not override them. The new starting block
+        will be overriding a normal block.
+        """
+
+        while(True):
+            # Random the index value of row and column.
+            r = int( math.floor( rand() * self.rows ) )
+            c = int( math.floor( rand() * self.cols ) )
+
+            idx = BlockIndex( r, c )
+
+            if ( True == self.is_normal_block(idx) ):
+                self.set_starting_block(idx, value=value)
+                print("Random starting block at [%d, %d]." % (r, c))
+                break
+            else:
+                print("Random starting block at [%d, %d] failed." % (r, c))
 
     def set_ending_block_s(self, r, c, value=None, endPoint=None):
         """
@@ -636,10 +701,12 @@ class GridMap2D(object):
         # Coordinate of the new ending block.
         coor = self.convert_to_coordinates( BlockIndex( r, c ) )
 
-        self.overwrite_block( r, c, \
-            EndingBlock(coor.x, coor.y, self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueEndingBlock, endPoint=endPoint) )
+        b = EndingBlock(coor.x, coor.y, self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueEndingBlock, endPoint=endPoint)
+
+        self.overwrite_block( r, c, b )
         self.endingBlockIdx.r = r
         self.endingBlockIdx.c = c
+        self.endingPoint = b.get_ending_point_coor()
 
         self.haveEndingBlock = True
 
@@ -656,6 +723,34 @@ class GridMap2D(object):
             self.set_ending_block_s( index[GridMap2D.I_R], index[GridMap2D.I_C], value, endPoint=endPoint )
         else:
             raise TypeError("index should be an object of BlockIndex or a list or a tuple.")
+
+    def random_ending_block(self, value):
+        """
+        NOTE: If the map has starting or ending blocks, the new randomly
+        asssigned ending block will not override them. The new ending block
+        will be overriding a normal block.
+        """
+
+        epShiftX = rand() * self.stepSize[GridMap2D.I_X]
+        epShiftY = rand() * self.stepSize[GridMap2D.I_Y]
+
+        while(True):
+            # Random the index value of row and column.
+            r = int( math.floor( rand() * self.rows ) )
+            c = int( math.floor( rand() * self.cols ) )
+
+            idx = BlockIndex( r, c )
+
+            if ( True == self.is_normal_block(idx) ):
+                coor = self.convert_to_coordinates(idx)
+                coor.x += epShiftX
+                coor.y += epShiftY
+
+                self.set_ending_block(idx, value=value, endPoint=coor)
+                print("Random ending block at [%d, %d], with ending point at [%f, %f]." % (r, c, coor.x, coor.y))
+                break
+            else:
+                print("Random ending block at [%d, %d] failed." % (r, c))
 
     def add_obstacle_s(self, r, c, value=None):
         assert( isinstance(r, (int, long)) )
@@ -1131,6 +1226,45 @@ class GridMapEnv(object):
     def get_ending_point_radius(self):
         return self.endPointRadius
 
+    def check_ending_point_radius(self):
+        """
+        Check if the starting point's center is in the range of the ending point.
+        """
+
+        if ( GridMapEnv.END_POINT_MODE_RADIUS != self.endPointMode ):
+            raise GridMapException("Check ending point radius could only be done with the END_POINT_MODE_RADIUS mode")
+
+        if ( False == self.map.haveEndingBlock ):
+            raise GridMapException("Map of the environment does not have a ending block.")
+
+        if ( False == self.map.haveStartingBlock ):
+            raise GridMapException("Map of the environemnt does not have a starting block.")
+        
+        # Get the ending point.
+        idxEnd = self.map.get_index_ending_block()
+        bEnd   = self.map.get_block( idxEnd )
+        ep     = bEnd.get_ending_point_coor()
+
+        # Get the starting point.
+        idxStart = self.map.get_index_starting_block()
+        bStart   = self.map.get_block( idxStart )
+        sp       = bStart.get_starting_point_coor()
+
+        # Test the distance.
+        d = two_coor_distance( ep, sp )
+        
+        if ( d <= self.endPointRadius ):
+            return False
+        else:
+            return True
+
+    def random_staring_and_ending_blocks(self):
+        if ( self.map is None ):
+            raise GridMapException("Could not randomize the starting and ending blocks. self.map is None.")
+        
+        self.map.random_starting_block( self.map.valueStartingBlock )
+        self.map.random_ending_block( self.map.valueEndingBlock )
+
     def set_max_steps(self, m):
         assert( isinstance( m, (int, long) ) )
         assert( m >= 0 )
@@ -1251,6 +1385,8 @@ class GridMapEnv(object):
         return BlockCoorDelta( ot.x - coor.x, ot.y - coor.y )
 
     def enable_action_value(self, factor):
+        assert( factor > 0 )
+
         self.actionValueFactor = factor
         self.flagActionValue = True
         self.enable_nondimensional_step()
@@ -1371,9 +1507,7 @@ class GridMapEnv(object):
 
         # Additional action value.
         if ( True == self.flagActionValue ):
-            value += self.actionValueFactor * math.sqrt( \
-                ( math.fabs(action.dx) - 1.0 )**2 + \
-                ( math.fabs(action.dy) - 1.0 )**2 )
+            value -= self.actionValueFactor * ( max( action.dx**2 + action.dy**2 - 1.0**2 , 0.0 ))
 
         # Update current location of the agent.
         self.agentCurrentLoc = copy.deepcopy( newLoc )
@@ -1425,10 +1559,26 @@ class GridMapEnv(object):
 
             for br in self.map.blockRows:
                 for b in br:
-                    rect = Rectangle( (b.coor[0], b.coor[1]), b.size[1], b.size[0], fill = True)
-                    rect.set_facecolor(b.color)
-                    rect.set_edgecolor("k")
-                    ax.add_patch(rect)
+                    if ( GridMapEnv.END_POINT_MODE_BLOCK == self.endPointMode ):
+                        rect = Rectangle( (b.coor[0], b.coor[1]), b.size[1], b.size[0], fill = True)
+                        rect.set_facecolor(b.color)
+                        rect.set_edgecolor("k")
+                        ax.add_patch(rect)
+                    elif ( GridMapEnv.END_POINT_MODE_RADIUS == self.endPointMode ):
+                        if ( not isinstance( b, EndingBlock ) ):
+                            rect = Rectangle( (b.coor[0], b.coor[1]), b.size[1], b.size[0], fill = True)
+                            rect.set_facecolor(b.color)
+                            rect.set_edgecolor("k")
+                            ax.add_patch(rect)
+                        else:
+                            cir = Circle( (b.endPoint[0], b.endPoint[1]), self.endPointRadius, fill=True )
+                            cir.set_facecolor(b.color)
+                            cir.set_edgecolor("k")
+                    else:
+                        raise GridMapException("Unexpected ending point mode %d." % (self.endPointMode))
+
+            if ( GridMapEnv.END_POINT_MODE_RADIUS == self.endPointMode ):
+                ax.add_patch(cir)
 
             # Annotations.
             plt.xlabel("x")
@@ -1527,12 +1677,20 @@ class GridMapEnv(object):
         fn will be used to create file in the working directory.
         """
 
+        if ( fn is None ):
+            fn = "GridMapEnv.json"
+        
+        fnPart = os.path.splitext(os.path.split(fn)[1])[0]
+
+        strFn  = "%s/%s" % ( self.workingDir, fn )
+        mapRef = fnPart + "_Map.json"
+        mapFn  = "%s/%s" % ( self.workingDir, mapRef )
+
         # Check if the map is present.
         if ( self.map is None ):
             raise GridMapException("Map must be set in order to save the environment.")
 
         # Save the map.
-        mapFn = "%s/%s" % ( self.workingDir, "Map.json" )
         self.map.dump_JSON( mapFn )
 
         # Create list for agent location history.
@@ -1548,7 +1706,7 @@ class GridMapEnv(object):
         # Compose a dictionary.
         d = { \
             "name": self.name, \
-            "mapFn": "Map.json", \
+            "mapFn": mapRef, \
             "maxSteps": self.maxSteps, \
             "nondimensionalStep": self.nondimensionalStep, \
             "nondimensionalStepRatio": self.nondimensionalStepRatio, \
@@ -1574,11 +1732,6 @@ class GridMapEnv(object):
             "nSteps": self.nSteps, \
             "totalValue": self.totalValue
             }
-
-        if ( fn is None ):
-            strFn = "%s/%s" % ( self.workingDir, "GridMapEnv.json" )
-        else:
-            strFn = "%s/%s" % ( self.workingDir, fn )
 
         # Open the file.
         fp = open( strFn, "w" )
@@ -2262,7 +2415,8 @@ class GridMapEnv(object):
                 coor.x, coor.y = coorPre.x, coorPre.y
                 print( "Rolled back to previous coordinate (%f, %f)" % ( coor.x, coor.y ) )
 
-            val = self.map.evaluate_coordinate( coor )
+            if ( False == self.map.is_in_ending_block(coor) ):
+                val = self.map.evaluate_coordinate( coor )
         else:
             # Cannot move.
             val = self.map.evaluate_coordinate( coor )
@@ -2273,9 +2427,11 @@ class GridMapEnv(object):
         if ( GridMapEnv.END_POINT_MODE_BLOCK == self.endPointMode ):
             if ( True == self.map.is_in_ending_block( coor ) ):
                 flagTerm = True
+                val += self.map.valueEndingBlock
         elif ( GridMapEnv.END_POINT_MODE_RADIUS == self.endPointMode ):
             if ( True == self.map.is_around_ending_block( coor, self.endPointRadius ) ):
                 flagTerm = True
+                val += self.map.valueEndingBlock
         else:
             raise GridMapException("Unexpected self.endPointMode. self.endPointMode = {}".format(self.endPointMode))
 
