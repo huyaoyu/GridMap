@@ -1679,7 +1679,7 @@ class GridMapEnv(object):
 
         if ( fn is None ):
             fn = "GridMapEnv.json"
-        
+                
         fnPart = os.path.splitext(os.path.split(fn)[1])[0]
 
         strFn  = "%s/%s" % ( self.workingDir, fn )
