@@ -199,7 +199,7 @@ class ObstacleBlock(Block):
         self.value = value
 
 class StartingBlock(Block):
-    def __init__(self, x = 0, y = 0, h = 1, w = 1, value = 0, startingPoint=None):
+    def __init__(self, x = 0, y = 0, h = 1, w = 1, value = -0.1, startingPoint=None):
         super(StartingBlock, self).__init__(x, y, h, w)
 
         # Member variables defined in the super classes.
@@ -331,7 +331,7 @@ class GridMap2D(object):
         self.stepSize  = copy.deepcopy(stepSize) # Step sizes in x and y direction. Note the order of x and y.
         self.outOfBoundValue = outOfBoundValue
 
-        self.valueStartingBlock = 0
+        self.valueStartingBlock = -0.1
         self.valueEndingBlock   = 100
         self.valueNormalBlock   = -0.1
         self.valueObstacleBlock = -10
@@ -447,7 +447,7 @@ class GridMap2D(object):
         fp = open( fn, "w" )
 
         # Save JSON file.
-        json.dump( d, fp, indent=4 )
+        json.dump( d, fp, indent=4, sort_keys=True )
 
         fp.close()
     
@@ -1737,7 +1737,7 @@ class GridMapEnv(object):
         fp = open( strFn, "w" )
 
         # Save the file.
-        json.dump( d, fp, indent=3 )
+        json.dump( d, fp, indent=3, sort_keys=True )
 
         fp.close()
 
