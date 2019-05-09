@@ -280,4 +280,179 @@ Other entries are self-explainable
 }
 ```
 
-### Read an envrionment with map and interact.
+### Read an envrionment with map and interaction history.
+
+Here we have an actual state-action history produced from our refinforcement learning model. The history is saved in the evrionment JSON file.
+
+```json
+{
+   "actStepSize": [ 1.1, 1.1 ], 
+   "actionClip": [ -1, 1 ], 
+   "actionValueFactor": 5.0, 
+   "agentActs": [
+	[-0.6520129940236956, 0.8266539202963825],
+	[-0.35028478917287753, 0.5651496215539535],
+	[-0.38514930722046103, 0.7519560665214722],
+	[-0.04477470458665511, 0.7020456770772885],
+	[0.10703485167595206, 0.6370423544447013],
+	[0.20191812259693487, 0.6578672506690308],
+	[0.3247610830712133, 0.5483639290604652],
+	[0.5438775866229404, 0.46919911336868303],
+	[0.8343731226765141, 0.2785065468910668],
+	[0.757525377742676, 0.20724495498727524],
+	[0.6949142040109964, 0.14618178559790884],
+	[0.6118330455949978, 0.17402328568885395],
+	[0.7180226742487577, 0.0861312340746796],
+	[0.885514067842621, 0.03151112948817669],
+	[0.7841304101207704, -0.02654509564795049],
+	[0.27785945122093647, -0.08017478178554782],
+	[0.4745407889189419, -0.04929628746751291]
+   ], 
+   "agentCurrentAct": [ 0.4745407889189419, -0.04929628746751291 ], 
+   "agentCurrentLoc": [ 8.284082991340563, 8.425860704818927 ], 
+   "agentLocs": [
+	[ 2.5, 2.5 ],
+	[1.8479870059763044, 3.3266539202963825],
+	[1.4977022168034269, 3.891803541850336],
+	[1.1125529095829658, 4.643759608371808],
+	[1.0677782049963107, 5.345805285449097],
+	[1.1748130566722628, 5.982847639893798],
+	[1.3767311792691976, 6.640714890562829],
+	[1.701492262340411, 7.189078819623294],
+	[2.2453698489633513, 7.658277932991977],
+	[3.0797429716398654, 7.936784479883044],
+	[3.8372683493825415, 8.144029434870319],
+	[4.532182553393538, 8.290211220468228],
+	[5.144015598988536, 8.464234506157082],
+	[5.862038273237293, 8.550365740231761],
+	[6.747552341079914, 8.581876869719938],
+	[7.531682751200685, 8.555331774071988],
+	[7.809542202421621, 8.47515699228644],
+	[8.284082991340563, 8.425860704818927]
+   ], 
+   "endPointMode": 1, 
+   "endPointRadius": 0.5, 
+   "flagActionClip": false, 
+   "flagActionValue": true, 
+   "isRandomCoordinating": true, 
+   "isTerminated": true, 
+   "mapFn": "GMEnv_Traj_Map.json", 
+   "maxSteps": 100, 
+   "nSteps": 17, 
+   "name": "GridMapEnv_02", 
+   "nondimensionalStep": true, 
+   "nondimensionalStepRatio": 0.1, 
+   "normalizedCoordinate": true, 
+   "randomCoordinatingVariance": 0.2, 
+   "totalValue": 98.4, 
+   "visAgentRadius": 0.1, 
+   "visForcePauseTime": 0.5, 
+   "visIsForcePause": true, 
+   "visPathArrowWidth": 0.1
+}
+```
+
+![Map with state-atction history](docs/GridMapEnv_02_17-100s_98v.png)
+
+It is pretty straight forward to read and render this environment.
+
+```python
+import GridMap
+
+workingDir = "/path/to/the/env/JSON/file"
+gme = GridMap.GridMapEnv( gridMap=None, workingDir=workingDir )
+gme.load( workingDir, "ENV.json" )
+# Do not call reset() after loading the environment unless you want to wipe out the history.
+# gme.reset()
+gme.render(flagSave=True)
+```
+
+## Build an environment from scratch and interact.
+
+In the following sample code we build a map, and then we make the agent moving in the map. 
+
+The map is 10x20 grids. We define various rewards/penalties for different blocks. The starting block is set to be at block index (0,0) and the ending block is all the way up to index (9, 19). Then we added a banch of obstacles.
+
+For this sample we are not using normalized coordinates or non-dimensional actions, this makes it easier to calculate the movement for us. Howewer, we could perform movements in terms of grid step sizes. The agent starts at the center of the starting block (0.5, 0.5). Then we first move north to (0.5, 4.5). Next, the agent tries to move east with 11 grid steps. This makes the agent hit the grid line of the obstacle. Then the agent moves away from the obstacle and make another move to (15.5, 2). The agent tries a huge leap to the north with 100 grid steps and it stops by the northern boundary at (15.5, 10). The agent moves away from the boundary and then take its final move to the ending block. Here the last action shows that the map is working in continuous coordinate.
+
+Under the settings of this environment, the agent only achieves -204 as its reward.
+
+```python
+import GridMap
+
+gridMap = GridMap.GridMap2D(10, 20, outOfBoundValue=-200)
+
+gridMap.set_value_normal_block(-1)
+gridMap.set_value_starting_block(-1)
+gridMap.set_value_ending_block(100)
+gridMap.set_value_obstacle_block(-100)
+
+gridMap.initialize()
+# Overwrite blocks.
+gridMap.set_starting_block((0, 0))
+gridMap.set_ending_block((9, 19))
+gridMap.add_obstacle((0, 10))
+gridMap.add_obstacle((4, 10))
+gridMap.add_obstacle((5,  0))
+gridMap.add_obstacle((5,  9))
+gridMap.add_obstacle((5, 10))
+gridMap.add_obstacle((5, 11))
+gridMap.add_obstacle((5, 19))
+gridMap.add_obstacle((6, 10))
+gridMap.add_obstacle((9, 10))
+
+workingDir = "./WD_TestGridMapEnv"
+
+self.gme = GridMap.GridMapEnv( gridMap=gridMap, workingDir=workingDir )
+self.gme.reset()
+
+# Get the actual grid step size
+stepSizeX = self.gme.map.get_step_size()[GridMap.GridMap2D.I_X]
+stepSizeY = self.gme.map.get_step_size()[GridMap.GridMap2D.I_Y]
+
+totalVal = 0
+
+# Move north with 4 grid steps.
+action = GridMap.BlockCoorDelta( 0 * stepSizeX, 4 * stepSizeY )
+coor, val, flagTerm, _ = self.gme.step( action )
+assert( not flagTerm )
+totalVal += val
+
+# Move 11 gride steps east, stopped by the boundary at (10, 4.5)
+action = GridMap.BlockCoorDelta( 11 * stepSizeX, 0 * stepSizeY )
+coor, val, flagTerm, _ = self.gme.step( action )
+assert( not flagTerm )
+totalVal += val
+
+# Move away from the obstacle by 1 grid step west and 1.5 grid step south.
+action = GridMap.BlockCoorDelta( -1 * stepSizeX, -1.5 * stepSizeY )
+coor, val, flagTerm, _ = self.gme.step( action )
+assert( not flagTerm )
+totalVal += val
+
+# Move to (15, 2)
+action = GridMap.BlockCoorDelta( 6.5 * stepSizeX, -1 * stepSizeY )
+coor, val, flagTerm, _ = self.gme.step( action )
+assert( not flagTerm )
+totalVal += val
+
+# Move 100 in north and stopped by the boundary.
+action = GridMap.BlockCoorDelta( 0 * stepSizeX, 100 * stepSizeY )
+coor, val, flagTerm, _ = self.gme.step( action )
+assert( not flagTerm )
+totalVal += val
+
+# Back off from the boundary.
+action = GridMap.BlockCoorDelta( 1 * stepSizeX, -0.8 * stepSizeY )
+coor, val, flagTerm, _ = self.gme.step( action )
+assert( not flagTerm )
+totalVal += val
+
+# Go directly to the ending block.
+action = GridMap.BlockCoorDelta( 3 * stepSizeX, 0.6 * stepSizeY )
+coor, val, flagTerm, _ = self.gme.step( action )
+assert( flagTerm )
+totalVal += val
+
+self.gme.render(3, flagSave=True)
+```
