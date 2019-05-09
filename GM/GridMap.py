@@ -1774,7 +1774,7 @@ class GridMapEnv(object):
 
         # Update current environment.
         self.workingDir = workingDir
-
+        
         self.name = d["name"]
         self.renderDir = "%s/%s" % ( self.workingDir, "Render" )
         self.maxSteps = d["maxSteps"]

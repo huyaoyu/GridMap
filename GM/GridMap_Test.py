@@ -2359,14 +2359,28 @@ class TestGridMapEnv_RLTrain(unittest.TestCase):
 
 class TestGridMapEnv_README(unittest.TestCase):
     def setUp(self):
+        self.workingDir = None
+        self.gme        = None
+
+    def test_render(self):
+        print("test_render.")
+
         self.workingDir = "./WD_TestGridMapEnv_README"
 
         self.gme = GridMap.GridMapEnv( gridMap=None, workingDir=self.workingDir )
         self.gme.load( self.workingDir, "GMEnv.json" )
         self.gme.reset()
 
-    def test_render(self):
-        print("test_render.")
+        self.gme.render(flagSave=True)
+
+    def test_render_with_trajectory(self):
+        print("test_render_with_trajectory.")
+
+        self.workingDir = "./WD_TestGridMapEnv_README"
+        # import ipdb; ipdb.set_trace()
+        self.gme = GridMap.GridMapEnv( gridMap=None, workingDir=self.workingDir )
+        self.gme.load( self.workingDir, "GMEnv_Traj.json" )
+        # self.gme.reset()
 
         self.gme.render(flagSave=True)
 
