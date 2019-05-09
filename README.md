@@ -166,7 +166,7 @@ Since we are in a continuous space, there are some special cases:
 
 - `GridMapEnv.enable_action_value()`: A special per-action penalty is added to the reward/penalty value returned by `step()`. This per-action value is used for the purpose of the authors' research. The user could modify its defination in the code of `step()`. Currently, this per-action penalty is defined based on non-dimensional action and expressed as
 
-[Equation image of the per-action penalty](docs/PerActionPenalty.gif)
+![Per-action penalty](docs/PerActionPenalty.gif)
 
 where _v_ is the value, \lambda is a factor. This per-action value penalize any attempt to make an action with magnitude over 1.
 
@@ -220,7 +220,7 @@ Here is a sample map with 10x10 grids. The starting block is (2, 2) and the endi
 }
 ```
 
-__Place holder for the image of the map__
+![A grid map](docs/GridMapEnv_01_0-100s_0v.png)
 
 By referring the above map, we define a sample environment. Here `actStepSize` is the non-dimensional step size, which is the actual step size on the map. 
 
