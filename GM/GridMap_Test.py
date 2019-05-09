@@ -2357,9 +2357,23 @@ class TestGridMapEnv_RLTrain(unittest.TestCase):
 
         print(coorNew)
 
+class TestGridMapEnv_README(unittest.TestCase):
+    def setUp(self):
+        self.workingDir = "./WD_TestGridMapEnv_README"
+
+        self.gme = GridMap.GridMapEnv( gridMap=None, workingDir=self.workingDir )
+        self.gme.load( self.workingDir, "GMEnv.json" )
+        self.gme.reset()
+
+    def test_render(self):
+        print("test_render.")
+
+        self.gme.render(flagSave=True)
+
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D )
     suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D_WithPotential ) )
     suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMapEnv ) )
     suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMapEnv_RLTrain ) )
+    suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMapEnv_README ) )
     unittest.TextTestRunner().run( suite )

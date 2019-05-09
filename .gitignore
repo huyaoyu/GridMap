@@ -1,6 +1,5 @@
 *.pyc
 *.dat
-*.png
 *.jpg
 /Debug
 /debug

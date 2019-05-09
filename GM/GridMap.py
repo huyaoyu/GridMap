@@ -1633,7 +1633,7 @@ class GridMapEnv(object):
 
         if ( True == flagSave ):
             if ( fn is None ):
-                saveFn = "%s/%s_%d-%ds_%dv" % (self.renderDir, self.name, self.nSteps, self.maxSteps, self.totalValue)
+                saveFn = "%s/%s_%d-%ds_%dv.png" % (self.renderDir, self.name, self.nSteps, self.maxSteps, self.totalValue)
             else:
                 saveFn = "%s/%s" % (self.renderDir, fn)
 
