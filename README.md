@@ -166,7 +166,9 @@ Since we are in a continuous space, there are some special cases:
 
 - `GridMapEnv.enable_action_value()`: A special per-action penalty is added to the reward/penalty value returned by `step()`. This per-action value is used for the purpose of the authors' research. The user could modify its defination in the code of `step()`. Currently, this per-action penalty is defined based on non-dimensional action and expressed as
 
+[Equation image of the per-action penalty](docs/PerActionPenalty.gif)
 
+where _v_ is the value, \lambda is a factor. This per-action value penalize any attempt to make an action with magnitude over 1.
 
 - `GridMapEnv.random_starting_and_ending_blocks()`: Randomize the starting and ending blocks of the associated map.
 
