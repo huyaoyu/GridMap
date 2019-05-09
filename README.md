@@ -118,18 +118,56 @@ Since we are in a continuous space, there are some special cases:
 
 - If the agent tries to move along a grid line of an obstacle, this is treated as hitting the obstacle. The agent will not move at all and will recieve a reward/penalty from the environment.
 
-- If the agent go across the ending block, it is not considered as a termination. No reward will be given regarding the crossing over the ending block.
-
-- If the agent stops right at the grid line of the ending block, it is not considered as reach the ending block.
+- If the agent goes across the ending block, it is not considered as a termination. No reward will be given regarding the crossing over the ending block. The reward/penalty is determined by the actual ending position.
 
 - If the agent goes across the ending block and goes out of the boundary neighboring the ending block. The agent will stop at the boundary. This is not considered as being inside the ending block. It is considered as being out of boundary and the agent receives the reward/penalty of being out of boundary.
 
 - If the agent goes across the ending block and hits an obstacle neighboring the ending block. The agent will stop at the grid line of the obstacle. This is not considered as being inside the ending block. It is considered as being hitting the obstacle and the agent receives the reward/penalty of hitting that obstacle.
+
+- If the agent stops right at the grid line of the ending block, it is not considered as reaching the ending block. The reward/penalty is from the normal block or obstacle or out-of-boundary depending on the type of the neighboring block.
 
 - If the agent lands at the intersection point of two or three obstacles, it will receive rewards/penalties from all the obstacles.
 
 - If the angnt lands at the intersection point of a boundary and an obstacle, it will receive both rewards/penalties for being out of boundary and hitting an obstacle at the same time.
 
 ### Settings
+
+- `GridMap2D.set_value_normal_block()`: Set the reward/penalty for ending up in a normal block. Call this function before `GridMap2D.initialize()`.
+
+- `GridMap2D.set_value_obstacle_block()`: Set the reward/penalty for hitting an obstacle. Call this function before `GridMap2D.initialize()`.
+
+- `GridMap2D.set_value_starting_block()`: Set the reward/penalty for returning into the starting block. Call this function before `GridMap2D.initialize()`.
+
+- `GridMap2D.set_value_ending_block()`: Set the reward for reaching the ending block. Call this function before `GridMap2D.initialize()`.
+
+- `GridMap2D.set_value_out_of_boundary()`: Set the penalty for being out of the boundary. Call this function before `GridMap2D.initialize()`.
+
+- `GridMap2D.set_starting_block()`: Set the index of the starting block. Original starting block will be automatically deleted. If the target index is already assigned to an ending block, an exception will be raised. Call this function after `GridMap2D.initialize()`.
+
+- `GridMap2D.set_ending_block()`: Set the index of the ending block. Original ending block will be automatically deleted. If the target index is already assigned to a starting block, an exception will be raised. Call this function after `GridMap2D.initialize()`.
+
+- `GridMap2D.add_obstacle()`: Add an obstacle into the map. If the target index is a starting or ending block, an exception will be raised. Call this function after `GridMap2D.initialize()`.
+
+- `GridMap2D.random_starting_block()`: Randomize the index of the starting block. Original staring block will be automatically deleted. The new starting block will not overwrite any existing ending block or obstacle. Call this function after `GridMap2D.initialize()`.
+
+- `GridMap2D.random_ending_block()`: Randomize the index of the ending block. Original ending block will be automatically deleted. The new ending block will not overwrite any existing starting block or obstacle. Call this function after `GridMap2D.initialize()`.
+
+- `GridMapEnv.set_working_dir()`: Configure the working direcotry for the environment.
+
+- `GridMapEnv.set_max_steps()`: Set the maximumn interactions allowed for a single epsiode.
+
+- `GridMapEnv.enable_nondimensional_step()`: Switch to non-dimensional step mode. Use `disable_nondimensional_step()` to turn it off.
+
+- `GridMapEnv.enable_action_clipping()`: Set the minimum and maximum step length. The uppper and lower clipping bounds will be used according to the mode of step (dimensional or non-dimensional). Use `disable_action_clipping()` to turn it off.
+
+- `GridMapEnv.enable_normalized_coordinate()`: If this function is called, the state value returned by `step()` function will be normalized to [0, 1], with 0 being the smallest coordinate and 1 the maximumn. Use `disable_normalized_coordinate()` to turn it off.
+
+- `GridMapEnv.enable_random_coordinating()`: If this function is called, a random noise will be added to the action. The random noise is expressed by a zero-mean Gaussian distribution and the user has to specify the standard variance by calling this function. The random noise will be added to be propotional to the magnitude of the action the agent is trying to take, not based on the actial action length performed by the environment taking consideration of the boundaries and obstacles along the path. Use `disable_random_coordinating()` to turn it off.
+
+- `GridMapEnv.enable_action_value()`: A special per-action penalty is added to the reward/penalty value returned by `step()`. This per-action value is used for the purpose of the authors' research. The user could modify its defination in the code of `step()`. Currently, this per-action penalty is defined based on non-dimensional action and expressed as
+
+
+
+- `GridMapEnv.random_starting_and_ending_blocks()`: Randomize the starting and ending blocks of the associated map.
 
 ## Replay a state-action history
