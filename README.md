@@ -172,6 +172,8 @@ where _v_ is the value, \lambda is a factor. This per-action value penalize any 
 
 - `GridMapEnv.random_starting_and_ending_blocks()`: Randomize the starting and ending blocks of the associated map.
 
+- `GridMapEnv.enable_force_pause()`: Call this function to tell the environment to ignore the `pause` argument of `render()` and pause with a specific time supplied here by `enable_force_pause()`. Use `disable_force_pause()` to turn it off.
+
 - `GME_NP.enable_stuck_check()`: Make `GME_NP` environment to check if the agent gets stuck to a single position. The use could supply a maximum number of stuck actions and a penelty value for reaching this number. If stack check is enabled and an agent reaches the maximum allowed stuck number at a specifice position, the environment will terminate. Stuck check does not sum stuck counts for different positions. Use `disable_stuck_check()` to turn it off.
 
 ## Replay a state-action history
@@ -186,6 +188,96 @@ By running the tests, there will be maps and envrionments generated and saved. T
 
 ### Sample map and environment JSON files.
 
+Here is a sample map with 10x10 grids. The starting block is (2, 2) and the ending block is (8, 8), both are using index numbers. Index begins with zero. There is a line of 6 obstacles. Note that `stepSize` is not the step size for an agent. It is for defining the actual size of the map. This map is visualized as the following image.
 
+```json
+{
+    "cols": 11, 
+    "endingBlockIdx": [ 8, 8 ], 
+    "endingPoint": [ 8.5, 8.5 ], 
+    "haveEndingBlock": true, 
+    "haveStartingBlock": true, 
+    "name": "S0202_E0808", 
+    "obstacleIndices": [
+        [ 5, 2 ], 
+        [ 5, 3 ], 
+        [ 5, 4 ], 
+        [ 5, 5 ], 
+        [ 5, 6 ], 
+        [ 5, 7 ], 
+        [ 5, 8 ]
+    ], 
+    "origin": [ 0, 0 ], 
+    "outOfBoundValue": -10, 
+    "rows": 11, 
+    "startingBlockIdx": [ 2, 2 ], 
+    "startingPoint": [ 2.5, 2.5 ], 
+    "stepSize": [ 1, 1 ], 
+    "valueEndingBlock": 100, 
+    "valueNormalBlock": -0.1, 
+    "valueObstacleBlock": -10, 
+    "valueStartingBlock": -0.1
+}
+```
+
+__Place holder for the image of the map__
+
+By referring the above map, we define a sample environment. Here `actStepSize` is the non-dimensional step size, which is the actual step size on the map. 
+
+- This environment enable the non-dimensional step by setting `nondimensionalStep` to `true`. The value of `actStepSize` is calculated as the product between the actual map length and the value `nondimensionalStepRatio`. Here the map is of length 11 on both sides, `nondimensionalStepRatio` is 0.1, so step size 1.0 under a non-dimensional step setting is actually 1.1 on the acutal map.
+
+- `actionValueFactor` is the \lambda for the per-action penalty. Per-action penalty is enabled by `flagActionValue`.
+- `agentActs` saves the action the agent was trying to take. It should be a list of two-element lists, similar to `agentLocs`.
+- `flagActionClip` is false, so setting `actionClip` has no effects. 
+- Random coordinating is enabled by `isRandomCoordinating` and the standard variance is set to be `randomCoordinatingVariance`.
+- Enable normalized coordinate by setting `normalizedCoordinate` to `true`.
+
+Other entries are self-explainable
+
+- `agentCurrentAct`: The current action the angent is trying to take.
+- `agentCurrentLoc`: Current locaiton (coordinate) of the agent.
+- `isTerminated`: `true` if the envrionment has terminated due to 1) the agent reaches the ending block, 2) mamximum steps is reached.
+- `mapFn`: The filename of the map JSON file.
+- `maxSteps`: The maximum steps allowed for a single episode.
+- `nSteps`: Number of steps already taken in the current episode.
+- `name`: The name of the environment.
+- `totalValue`: The total reward value the agent has collected up to now.
+- `visAgentRadius`: The circle radius of the agent on the rendered image.
+- `visForcePauseTime`: The pause time of the `enable_force_pause()` function. 
+- `visIsForcePause`: Equivalent to calling `enable_force_pause()`.
+- `visPathArrowWidth`: Actions of an agent will be represented as arrows. This is the width of the arrow.
+
+```json
+{
+   "actStepSize": [ 1.1, 1.1 ], 
+   "actionClip": [ -1, 1 ], 
+   "actionValueFactor": 5.0, 
+   "agentActs": [], 
+   "agentCurrentAct": [ 0, 0 ], 
+   "agentCurrentLoc": [ 2.5, 2.5 ], 
+   "agentLocs": [
+      [ 2.5, 2.5 ]
+   ], 
+   "endPointMode": 1, 
+   "endPointRadius": 1.0, 
+   "flagActionClip": false, 
+   "flagActionValue": true, 
+   "isRandomCoordinating": true, 
+   "isTerminated": false, 
+   "mapFn": "RSE_13_1_GMEnv_Map.json", 
+   "maxSteps": 100, 
+   "nSteps": 0, 
+   "name": "GridMapEnv_01", 
+   "nondimensionalStep": true, 
+   "nondimensionalStepRatio": 0.1, 
+   "normalizedCoordinate": true, 
+   "randomCoordinatingVariance": 0.2, 
+   "totalValue": 0, 
+   "visAgentRadius": 0.1, 
+   "visForcePauseTime": 0.001, 
+   "visIsForcePause": true, 
+   "visPathArrowWidth": 0.1
+}
+```
 
 ### Read an envrionment with map and interact.
