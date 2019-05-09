@@ -2384,6 +2384,85 @@ class TestGridMapEnv_README(unittest.TestCase):
 
         self.gme.render(flagSave=True)
 
+    def test_build_map_and_interact(self):
+        print("test_build_map_and_interact")
+
+        gridMap = GridMap.GridMap2D(10, 20, outOfBoundValue=-200)
+
+        gridMap.set_value_normal_block(-1)
+        gridMap.set_value_starting_block(-1)
+        gridMap.set_value_ending_block(100)
+        gridMap.set_value_obstacle_block(-100)
+
+        gridMap.initialize()
+        # Overwrite blocks.
+        gridMap.set_starting_block((0, 0))
+        gridMap.set_ending_block((9, 19))
+        gridMap.add_obstacle((0, 10))
+        gridMap.add_obstacle((4, 10))
+        gridMap.add_obstacle((5,  0))
+        gridMap.add_obstacle((5,  9))
+        gridMap.add_obstacle((5, 10))
+        gridMap.add_obstacle((5, 11))
+        gridMap.add_obstacle((5, 19))
+        gridMap.add_obstacle((6, 10))
+        gridMap.add_obstacle((9, 10))
+
+        self.workingDir = "./WD_TestGridMapEnv_README"
+
+        self.gme = GridMap.GridMapEnv( name="GMEnv_03", gridMap=gridMap, workingDir=self.workingDir )
+        self.gme.reset()
+
+        # Get the actual grid step size
+        stepSizeX = self.gme.map.get_step_size()[GridMap.GridMap2D.I_X]
+        stepSizeY = self.gme.map.get_step_size()[GridMap.GridMap2D.I_Y]
+
+        totalVal = 0
+
+        # Move north with 4 grid steps.
+        action = GridMap.BlockCoorDelta( 0 * stepSizeX, 4 * stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        assert( not flagTerm )
+        totalVal += val
+
+        # Move 11 gride steps east, stopped by the boundary at (10, 4.5)
+        action = GridMap.BlockCoorDelta( 11 * stepSizeX, 0 * stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        assert( not flagTerm )
+        totalVal += val
+
+        # Move away from the obstacle by 1 grid step west and 1.5 grid step south.
+        action = GridMap.BlockCoorDelta( -1 * stepSizeX, -1.5 * stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        assert( not flagTerm )
+        totalVal += val
+
+        # Move to (15, 2)
+        action = GridMap.BlockCoorDelta( 6.5 * stepSizeX, -1 * stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        assert( not flagTerm )
+        totalVal += val
+
+        # Move 100 in north and stopped by the boundary.
+        action = GridMap.BlockCoorDelta( 0 * stepSizeX, 100 * stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        assert( not flagTerm )
+        totalVal += val
+
+        # Back off from the boundary.
+        action = GridMap.BlockCoorDelta( 1 * stepSizeX, -0.8 * stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        assert( not flagTerm )
+        totalVal += val
+
+        # Go directly to the ending block.
+        action = GridMap.BlockCoorDelta( 3 * stepSizeX, 0.6 * stepSizeY )
+        coor, val, flagTerm, _ = self.gme.step( action )
+        assert( flagTerm )
+        totalVal += val
+
+        self.gme.render(3, flagSave=True)
+
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D )
     suite.addTest( unittest.TestLoader().loadTestsFromTestCase( TestGridMap2D_WithPotential ) )
