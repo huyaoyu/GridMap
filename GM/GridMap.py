@@ -622,7 +622,7 @@ class GridMap2D(object):
         assert( isinstance(r, (int, long)) )
         assert( isinstance(c, (int, long)) )
         
-        if ( True == is_ending_block( BlockIndex(r,c) ) ):
+        if ( True == self.is_ending_block( BlockIndex(r,c) ) ):
             raise GridMapException("The target index for starting block (%d, %d) is already assigned to an ending block." % (r, c))
 
         if ( True == self.haveStartingBlock ):
@@ -688,7 +688,7 @@ class GridMap2D(object):
         assert( isinstance(r, (int, long)) )
         assert( isinstance(c, (int, long)) )
 
-        if ( True == is_starting_block( BlockIndex(r,c) ) ):
+        if ( True == self.is_starting_block( BlockIndex(r,c) ) ):
             raise GridMapException("The target index for ending block (%d, %d) is already assigned to a starting block." % (r, c))
         
         if ( True == self.haveEndingBlock ):
