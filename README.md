@@ -172,4 +172,20 @@ where _v_ is the value, \lambda is a factor. This per-action value penalize any 
 
 - `GridMapEnv.random_starting_and_ending_blocks()`: Randomize the starting and ending blocks of the associated map.
 
+- `GME_NP.enable_stuck_check()`: Make `GME_NP` environment to check if the agent gets stuck to a single position. The use could supply a maximum number of stuck actions and a penelty value for reaching this number. If stack check is enabled and an agent reaches the maximum allowed stuck number at a specifice position, the environment will terminate. Stuck check does not sum stuck counts for different positions. Use `disable_stuck_check()` to turn it off.
+
 ## Replay a state-action history
+
+After interacting with the envrionment by a sequence of `step()` calls, the user could issue a `render()` to replay the state-action history up to the current step. When clling `render()`, the user could define a pause time (decimal number in seconds) and a filename. If a pause time is defined as larger than zero, the rendered figure will pause for that time and then disappear. If a non-positive value is specified as the pause time, the rendered figure will not be closed and the user could use the Q key on the keyboard to close the figure. When a filename is supplied, the rendered figure will be saved as an image. The user should only specify the filename without any preceding paths. The actual storing directory is specified as the `Render` subdirectory under the working directory.
+
+To save the rendered figure as an image, the user has to explicitly specify `True` for the argument `flagSave` of the `render()` function. The user could chose to ommit the `fn` argument and only set the `flagSave` argument. This results in writing a rendered image with a composed filename. The file name is defined as "Envrionment name_action counts-maximum allowed steps_total reward value.png".
+
+## Sample code.
+
+By running the tests, there will be maps and envrionments generated and saved. The user could exam the test codes and taking them as examples.
+
+### Sample map and environment JSON files.
+
+
+
+### Read an envrionment with map and interact.
