@@ -371,11 +371,15 @@ gme.render(flagSave=True)
 
 In the following sample code we build a map, and then we make the agent moving in the map. 
 
+In the grid map, the index is described in order of row-column and is zero-based. Index (1, 2) means the second row and the third column. The values for a index are always integers. A coordinate is expressed by (x, y), that is in the order of column-coordinate and row-coordinate. The values for a coordinate are real numbers.
+
 The map is 10x20 grids. We define various rewards/penalties for different blocks. The starting block is set to be at block index (0,0) and the ending block is all the way up to index (9, 19). Then we added a banch of obstacles.
 
-For this sample we are not using normalized coordinates or non-dimensional actions, this makes it easier to calculate the movement for us. Howewer, we could perform movements in terms of grid step sizes. The agent starts at the center of the starting block (0.5, 0.5). Then we first move north to (0.5, 4.5). Next, the agent tries to move east with 11 grid steps. This makes the agent hit the grid line of the obstacle. Then the agent moves away from the obstacle and make another move to (15.5, 2). The agent tries a huge leap to the north with 100 grid steps and it stops by the northern boundary at (15.5, 10). The agent moves away from the boundary and then take its final move to the ending block. Here the last action shows that the map is working in continuous coordinate.
+For this sample we are not using normalized coordinates or non-dimensional actions, this makes it easier to calculate the movement by hand. Howewer, we could perform movements in terms of grid step sizes (the height and width of a grid cell). The agent starts at the center of the starting block (0.5, 0.5). Then we first move north to coordinate (0.5, 4.5). Next, the agent tries to move east with 11 grid steps. This makes the agent hit the vertical grid line of the obstacle. Then the agent moves away from the obstacle and make another move to (15.5, 2). The agent tries a huge leap to the north with 100 grid steps and it stops by the northern boundary at (15.5, 10). The agent moves away from the boundary and then take its final move to the ending block. Here the last action shows that the map is working in continuous coordinate.
 
-Under the settings of this environment, the agent only achieves -204 as its reward.
+Under the settings of this environment, the agent only achieves -204 as its reward. (Without any resctrictions on the step size, the optimum reward is 99 for this example.)
+
+![Build a map from scratch and interact](docs/GMEnv_03_7-0s_-204v.png)
 
 ```python
 import GridMap
@@ -456,3 +460,15 @@ totalVal += val
 
 self.gme.render(3, flagSave=True)
 ```
+
+## Ending block with radius mode.
+
+As requested by the research, we develop a new mode of ending block. Previously, the ending block is a grid cell with specify reward. An agent has to reach the inside of the ending block to trigger the termination or the episode. Now we could use a new mode called the "radius mode". 
+
+In the radius mode, the user specify a coordinate inside the ending block as the center ending point. Then the user define a radius to effectively define a circular region around the center ending point to be the ending region. To terminate the episode, the agent has to reach the insdie of the circular region.
+
+The radius mode is enabled by calling `enable_ending_point_radius()`. When calling this function, a value for the radius is required. It is not required that obstacles and out-of-boundary regions to not intersect with the circular region. Further, the distance between the center of the starting block and the center ending point is not controled. The user could issue `check_ending_point_radius()` to see if the center of the starting block resides in the circular region of the ending block. Use `disable_ending_point_radius()` to disable.
+
+
+
+
