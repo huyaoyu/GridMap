@@ -2387,7 +2387,7 @@ class TestGridMapEnv_README(unittest.TestCase):
     def test_build_map_and_interact(self):
         print("test_build_map_and_interact")
 
-        gridMap = GridMap.GridMap2D(10, 20, outOfBoundValue=-200)
+        gridMap = GridMap.GridMap2D(10, 20, name="RedIntersection", outOfBoundValue=-200)
 
         gridMap.set_value_normal_block(-1)
         gridMap.set_value_starting_block(-1)
